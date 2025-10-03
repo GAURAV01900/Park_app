@@ -3,7 +3,7 @@ import 'available_slots_screen.dart';
 import 'two_wheeler_slots_screen.dart';
 
 class SelectVehicleTypeScreen extends StatelessWidget {
-  const SelectVehicleTypeScreen({Key? key}) : super(key: key);
+  const SelectVehicleTypeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -100,8 +100,7 @@ class _VehicleTypeCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
-    Key? key,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

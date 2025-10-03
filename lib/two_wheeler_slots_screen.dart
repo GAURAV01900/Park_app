@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'confirm_slot_screen.dart';
 
 class TwoWheelerSlotsScreen extends StatelessWidget {
-  const TwoWheelerSlotsScreen({Key? key}) : super(key: key);
+  const TwoWheelerSlotsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

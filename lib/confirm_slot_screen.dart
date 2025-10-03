@@ -4,7 +4,7 @@ class ConfirmSlotScreen extends StatelessWidget {
   final String slotId;
   final bool available;
 
-  const ConfirmSlotScreen({Key? key, required this.slotId, required this.available}) : super(key: key);
+  const ConfirmSlotScreen({super.key, required this.slotId, required this.available});
 
   @override
   Widget build(BuildContext context) {
