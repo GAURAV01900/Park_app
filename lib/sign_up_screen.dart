@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // ...existing code...
 
@@ -15,6 +16,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _rollNumberController = TextEditingController();
+  String? _selectedRole; // student, faculty, staff
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   bool _isLoading = false;
 
@@ -32,7 +36,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
         await credential.user!.updateDisplayName(_nameController.text.trim());
         await credential.user!.reload();
 
-        Navigator.pushNamed(context, '/home');
+        // Save user data to Firestore
+        await _firestore.collection('users').doc(credential.user!.uid).set({
+          'name': _nameController.text.trim(),
+          'email': _emailController.text.trim(),
+          'rollNumber': _rollNumberController.text.trim(),
+          'role': _selectedRole,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+
+        Navigator.pushNamed(context, '/vehicle-setup');
       } on FirebaseAuthException catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.message ?? 'Registration failed')),
@@ -52,6 +65,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _rollNumberController.dispose();
     super.dispose();
   }
 
@@ -73,8 +87,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 const Text(
                   'PARK APP',
                   style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 45,
+                    fontWeight: FontWeight.w800,
                     color: Colors.blue,
                     letterSpacing: 1.5,
                   ),
@@ -99,7 +113,48 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
                   validator: (value) =>
-                      value!.isEmpty ? 'Enter your full name' : null,
+                  value!.isEmpty ? 'Enter your full name' : null,
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: _rollNumberController,
+                  decoration: const InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white,
+                    prefixIcon: Icon(Icons.badge_outlined),
+                    labelText: 'Roll Number',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(12)),
+                    ),
+                  ),
+                  validator: (value) =>
+                      value == null || value.isEmpty ? 'Enter your roll number' : null,
+                ),
+                const SizedBox(height: 20),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedRole,
+                  decoration: const InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white,
+                    prefixIcon: Icon(Icons.people_outline),
+                    labelText: 'Role',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(12)),
+                    ),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'student', child: Text('Student')),
+                    DropdownMenuItem(value: 'faculty', child: Text('Faculty')),
+                    DropdownMenuItem(value: 'staff', child: Text('Staff')),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedRole = value;
+                    });
+                  },
+                  validator: (value) => value == null || value.isEmpty
+                      ? 'Please select your role'
+                      : null,
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
@@ -114,7 +169,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
                   validator: (value) =>
-                      value!.isEmpty ? 'Enter your email' : null,
+                  value!.isEmpty ? 'Enter your email' : null,
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
@@ -130,7 +185,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
                   validator: (value) =>
-                      value!.length < 6 ? 'Minimum 6 characters' : null,
+                  value!.length < 6 ? 'Minimum 6 characters' : null,
                 ),
                 const SizedBox(height: 30),
                 ElevatedButton(

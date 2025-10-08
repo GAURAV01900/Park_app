@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'select_vehicle_type_screen.dart';
+import 'settings_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -23,7 +25,13 @@ class HomeScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings, color: Color(0xFF64748B)),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                ),
+              );
+            },
           ),
         ],
         leading: const SizedBox(width: 48),
@@ -113,7 +121,15 @@ class HomeScreen extends StatelessWidget {
         selectedItemColor: const Color(0xFF1173D4),
         unselectedItemColor: const Color(0xFF64748B),
         currentIndex: 0,
-        onTap: (index) {},
+        onTap: (index) {
+          if (index == 2) { // Profile tab
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const ProfileScreen(),
+              ),
+            );
+          }
+        },
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
