@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+// ...existing code...
+
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
 
@@ -22,7 +24,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       try {
         final credential =
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+            await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
@@ -67,6 +69,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                // App name added here
+                const Text(
+                  'PARK APP',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.blue,
+                    letterSpacing: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
                 const Text(
                   'Sign Up',
                   style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
@@ -85,7 +99,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
                   validator: (value) =>
-                  value!.isEmpty ? 'Enter your full name' : null,
+                      value!.isEmpty ? 'Enter your full name' : null,
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
@@ -100,7 +114,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
                   validator: (value) =>
-                  value!.isEmpty ? 'Enter your email' : null,
+                      value!.isEmpty ? 'Enter your email' : null,
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
@@ -116,7 +130,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
                   validator: (value) =>
-                  value!.length < 6 ? 'Minimum 6 characters' : null,
+                      value!.length < 6 ? 'Minimum 6 characters' : null,
                 ),
                 const SizedBox(height: 30),
                 ElevatedButton(
@@ -130,8 +144,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                   child: _isLoading
                       ? const CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation(Colors.white),
-                  )
+                          valueColor: AlwaysStoppedAnimation(Colors.white),
+                        )
                       : const Text("Sign Up"),
                 ),
                 const SizedBox(height: 30),
@@ -158,3 +172,5 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 }
+
+// ...existing code...
