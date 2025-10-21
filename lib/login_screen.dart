@@ -54,6 +54,64 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _resetPassword() async {
+    // Check if email field is empty
+    if (_emailController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your email address first')),
+      );
+      return;
+    }
+
+    // Validate email format
+    if (!_emailController.text.trim().contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid email address')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(
+        email: _emailController.text.trim(),
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password reset email sent! Check your inbox.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      String message;
+      switch (e.code) {
+        case 'user-not-found':
+          message = 'No user found for that email address.';
+          break;
+        case 'invalid-email':
+          message = 'Invalid email format.';
+          break;
+        case 'too-many-requests':
+          message = 'Too many requests. Please try again later.';
+          break;
+        default:
+          message = 'Failed to send password reset email. Please try again.';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Something went wrong. Try again later.')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -127,7 +185,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () {}, // TODO: Add forgot password
+                    onPressed: _isLoading ? null : _resetPassword,
                     child: const Text("Forgot password?"),
                   ),
                 ),

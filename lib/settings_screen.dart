@@ -1,17 +1,58 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'vehicles_screen.dart';
+import 'profile_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Sign Out'),
+          content: const Text('Are you sure you want to sign out?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _signOut(context);
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Sign Out'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _signOut(BuildContext context) async {
     try {
       await FirebaseAuth.instance.signOut();
-      // Navigation will be handled by WrapperScreen automatically
+      
+      // Navigate to login page and clear the navigation stack
+      if (context.mounted) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/login',
+          (Route<dynamic> route) => false,
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error signing out: ${e.toString()}')),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error signing out: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -53,9 +94,11 @@ class SettingsScreen extends StatelessWidget {
                       subtitle: const Text('Manage your account details'),
                       trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                       onTap: () {
-                        // TODO: Navigate to profile page
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Profile page coming soon')),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ProfileScreen(),
+                          ),
                         );
                       },
                     ),
@@ -66,9 +109,11 @@ class SettingsScreen extends StatelessWidget {
                       subtitle: const Text('Manage your registered vehicles'),
                       trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                       onTap: () {
-                        // TODO: Navigate to vehicles page
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Vehicles page coming soon')),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const VehiclesScreen(),
+                          ),
                         );
                       },
                     ),
@@ -92,7 +137,7 @@ class SettingsScreen extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () => _signOut(context),
+                  onPressed: () => _showLogoutDialog(context),
                   icon: const Icon(Icons.logout),
                   label: const Text('Sign Out'),
                   style: ElevatedButton.styleFrom(

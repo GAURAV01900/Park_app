@@ -3,35 +3,50 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'models/vehicle.dart';
 
-class VehicleSetupScreen extends StatefulWidget {
-  const VehicleSetupScreen({super.key});
+class AddEditVehicleScreen extends StatefulWidget {
+  final Vehicle? vehicle;
+
+  const AddEditVehicleScreen({super.key, this.vehicle});
 
   @override
-  State<VehicleSetupScreen> createState() => _VehicleSetupScreenState();
+  State<AddEditVehicleScreen> createState() => _AddEditVehicleScreenState();
 }
 
-class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  
-  // Form controllers
+class _AddEditVehicleScreenState extends State<AddEditVehicleScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _licensePlateController = TextEditingController();
   final _colorController = TextEditingController();
   final _makeController = TextEditingController();
   final _modelController = TextEditingController();
   final _yearController = TextEditingController();
-  
+
   String _selectedType = 'car';
   bool _isLoading = false;
-  
+
   final List<String> _vehicleTypes = [
     'car',
     'motorcycle',
     'truck',
     'bicycle',
   ];
+
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.vehicle != null) {
+      _nameController.text = widget.vehicle!.name;
+      _licensePlateController.text = widget.vehicle!.licensePlate;
+      _colorController.text = widget.vehicle!.color;
+      _makeController.text = widget.vehicle!.make;
+      _modelController.text = widget.vehicle!.model;
+      _yearController.text = widget.vehicle!.year.toString();
+      _selectedType = widget.vehicle!.type;
+    }
+  }
 
   @override
   void dispose() {
@@ -44,92 +59,15 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
     super.dispose();
   }
 
-  Future<void> _addVehicle() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      final now = DateTime.now();
-      final vehicle = Vehicle(
-        id: _firestore.collection('vehicles').doc().id,
-        name: _nameController.text.trim(),
-        licensePlate: _licensePlateController.text.trim(),
-        type: _selectedType,
-        color: _colorController.text.trim(),
-        make: _makeController.text.trim(),
-        model: _modelController.text.trim(),
-        year: int.parse(_yearController.text.trim()),
-        createdAt: now,
-        updatedAt: now,
-      );
-
-      await _firestore
-          .collection('users')
-          .doc(_auth.currentUser?.uid)
-          .collection('vehicles')
-          .doc(vehicle.id)
-          .set(vehicle.toMap());
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Vehicle added successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        
-        // Clear form
-        _nameController.clear();
-        _licensePlateController.clear();
-        _colorController.clear();
-        _makeController.clear();
-        _modelController.clear();
-        _yearController.clear();
-        setState(() => _selectedType = 'car');
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error adding vehicle: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  Future<void> _done() async {
-    Navigator.pushReplacementNamed(context, '/home');
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFEEF2F7),
       appBar: AppBar(
-        title: const Text('Add Your Vehicles'),
+        title: Text(widget.vehicle == null ? 'Add Vehicle' : 'Edit Vehicle'),
         backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: Colors.black,
-        actions: [
-          TextButton(
-            onPressed: _done,
-            child: const Text(
-              'Done',
-              style: TextStyle(
-                color: Colors.blue,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-          ),
-        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -140,7 +78,6 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 20),
-                // Vehicle Name
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(
@@ -161,7 +98,6 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                // License Plate
                 TextFormField(
                   controller: _licensePlateController,
                   decoration: const InputDecoration(
@@ -174,7 +110,6 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
                       borderRadius: BorderRadius.all(Radius.circular(12)),
                     ),
                   ),
-                  textCapitalization: TextCapitalization.characters,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'Please enter license plate number';
@@ -183,7 +118,6 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                // Vehicle Type
                 DropdownButtonFormField<String>(
                   value: _selectedType,
                   decoration: const InputDecoration(
@@ -208,7 +142,6 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                // Make and Model Row
                 Row(
                   children: [
                     Expanded(
@@ -257,7 +190,6 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                // Color and Year Row
                 Row(
                   children: [
                     Expanded(
@@ -311,11 +243,10 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
                   ],
                 ),
                 const SizedBox(height: 32),
-                // Add Vehicle Button
                 SizedBox(
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _addVehicle,
+                    onPressed: _isLoading ? null : _saveVehicle,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue,
                       foregroundColor: Colors.white,
@@ -332,109 +263,14 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
                               strokeWidth: 2,
                             ),
                           )
-                        : const Text(
-                            'Add Vehicle',
-                            style: TextStyle(
+                        : Text(
+                            widget.vehicle == null ? 'Add Vehicle' : 'Update Vehicle',
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                // Skip Button
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton(
-                    onPressed: _done,
-                    child: const Text(
-                      "I'll do this later",
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // Existing Vehicles Section
-                StreamBuilder<QuerySnapshot>(
-                  stream: _firestore
-                      .collection('users')
-                      .doc(_auth.currentUser?.uid)
-                      .collection('vehicles')
-                      .orderBy('createdAt', descending: true)
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const SizedBox.shrink();
-                    }
-
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                      return const SizedBox.shrink();
-                    }
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Your Vehicles',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: snapshot.data!.docs.length,
-                          itemBuilder: (context, index) {
-                            final doc = snapshot.data!.docs[index];
-                            final vehicle = Vehicle.fromMap(doc.data() as Map<String, dynamic>);
-                            
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              elevation: 2,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: ListTile(
-                                contentPadding: const EdgeInsets.all(16),
-                                leading: CircleAvatar(
-                                  backgroundColor: _getVehicleTypeColor(vehicle.type),
-                                  child: Icon(
-                                    _getVehicleTypeIcon(vehicle.type),
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                title: Text(
-                                  vehicle.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const SizedBox(height: 4),
-                                    Text('${vehicle.make} ${vehicle.model} (${vehicle.year})'),
-                                    Text('${vehicle.licensePlate} • ${vehicle.color}'),
-                                  ],
-                                ),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                  onPressed: () => _showDeleteDialog(vehicle),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    );
-                  },
                 ),
               ],
             ),
@@ -444,88 +280,59 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
     );
   }
 
-  Color _getVehicleTypeColor(String type) {
-    switch (type.toLowerCase()) {
-      case 'car':
-        return Colors.blue;
-      case 'motorcycle':
-        return Colors.orange;
-      case 'truck':
-        return Colors.green;
-      case 'bicycle':
-        return Colors.purple;
-      default:
-        return Colors.grey;
-    }
-  }
+  Future<void> _saveVehicle() async {
+    if (!_formKey.currentState!.validate()) return;
 
-  IconData _getVehicleTypeIcon(String type) {
-    switch (type.toLowerCase()) {
-      case 'car':
-        return Icons.directions_car;
-      case 'motorcycle':
-        return Icons.motorcycle;
-      case 'truck':
-        return Icons.local_shipping;
-      case 'bicycle':
-        return Icons.pedal_bike;
-      default:
-        return Icons.directions_car;
-    }
-  }
+    setState(() => _isLoading = true);
 
-  void _showDeleteDialog(Vehicle vehicle) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Vehicle'),
-        content: Text('Are you sure you want to delete "${vehicle.name}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _deleteVehicle(vehicle);
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _deleteVehicle(Vehicle vehicle) async {
     try {
+      final now = DateTime.now();
+      final vehicle = Vehicle(
+        id: widget.vehicle?.id ?? _firestore.collection('vehicles').doc().id,
+        name: _nameController.text.trim(),
+        licensePlate: _licensePlateController.text.trim(),
+        type: _selectedType,
+        color: _colorController.text.trim(),
+        make: _makeController.text.trim(),
+        model: _modelController.text.trim(),
+        year: int.parse(_yearController.text.trim()),
+        createdAt: widget.vehicle?.createdAt ?? now,
+        updatedAt: now,
+      );
+
       await _firestore
           .collection('users')
           .doc(_auth.currentUser?.uid)
           .collection('vehicles')
           .doc(vehicle.id)
-          .delete();
+          .set(vehicle.toMap());
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${vehicle.name} deleted successfully'),
+            content: Text(
+              widget.vehicle == null
+                  ? 'Vehicle added successfully!'
+                  : 'Vehicle updated successfully!',
+            ),
             backgroundColor: Colors.green,
           ),
         );
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error deleting vehicle: $e'),
+            content: Text('Error saving vehicle: $e'),
             backgroundColor: Colors.red,
           ),
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 }
-
-

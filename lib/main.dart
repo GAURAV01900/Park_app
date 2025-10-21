@@ -5,6 +5,8 @@ import 'wrapper_screen.dart';
 import 'vehicle_setup_screen.dart';
 import 'settings_screen.dart';
 import 'profile_screen.dart';
+import 'vehicles_screen.dart';
+import 'main_navigation_wrapper.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
@@ -26,12 +28,13 @@ class MyApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (_) => const WrapperScreen(),
-        '/home': (_) => const HomeScreen(),
+        '/home': (_) => const MainNavigationWrapper(),
         '/login': (_) => const LoginScreen(),
         '/signup': (_) => const SignUpScreen(),
         '/vehicle-setup': (_) => const VehicleSetupScreen(),
         '/settings': (_) => const SettingsScreen(),
         '/profile': (_) => const ProfileScreen(),
+        '/vehicles': (_) => const VehiclesScreen(),
       },
     );
   }

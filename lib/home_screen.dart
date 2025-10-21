@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'select_vehicle_type_screen.dart';
 import 'settings_screen.dart';
-import 'profile_screen.dart';
+import 'main_navigation_wrapper.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -107,47 +107,19 @@ class HomeScreen extends StatelessWidget {
                     ),
                     elevation: 0,
                   ),
-                  onPressed: () {},
+                  onPressed: () {
+                    // Find the MainNavigationWrapper and switch to history tab
+                    final mainNavWrapper = context.findAncestorStateOfType<MainNavigationWrapperState>();
+                    if (mainNavWrapper != null) {
+                      mainNavWrapper.switchToTab(1); // Switch to History tab
+                    }
+                  },
                   child: const Text('My Parking History'),
                 ),
               ),
             ],
           ),
         ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: const Color(0xFFF6F7F8),
-        selectedItemColor: const Color(0xFF1173D4),
-        unselectedItemColor: const Color(0xFF64748B),
-        currentIndex: 0,
-        onTap: (index) {
-          if (index == 2) { // Profile tab
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => const ProfileScreen(),
-              ),
-            );
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history),
-            label: 'History',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
-            label: 'Notifications',
-          ),
-        ],
       ),
     );
   }
