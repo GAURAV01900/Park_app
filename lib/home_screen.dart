@@ -1,10 +1,21 @@
 import 'package:flutter/material.dart';
-import 'select_vehicle_type_screen.dart';
 import 'settings_screen.dart';
 import 'main_navigation_wrapper.dart';
+import 'parking_map_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'models/parking_spot.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   @override
   Widget build(BuildContext context) {
@@ -36,91 +47,259 @@ class HomeScreen extends StatelessWidget {
         ],
         leading: const SizedBox(width: 48),
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.local_parking,
-                size: 80,
-                color: Color(0xFF94A3B8),
-              ),
-              const SizedBox(height: 32),
-              const Text(
-                'No Active Parking',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF334155),
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                "You currently don't have a parked vehicle.",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF94A3B8),
-                ),
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1173D4),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    textStyle: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const SelectVehicleTypeScreen(),
+      body: SafeArea(
+        child: StreamBuilder<QuerySnapshot>(
+          stream: _firestore
+              .collection('parking_spots')
+              .where('occupiedBy', isEqualTo: _auth.currentUser?.uid)
+              .where('isOccupied', isEqualTo: true)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (snapshot.hasError) {
+              return Center(
+                child: Text('Error: ${snapshot.error}'),
+              );
+            }
+
+            final userParkedSpots = snapshot.data?.docs ?? [];
+            final hasParkedSpot = userParkedSpots.isNotEmpty;
+            final parkedSpot = hasParkedSpot 
+                ? ParkingSpot.fromMap(userParkedSpots.first.data() as Map<String, dynamic>)
+                : null;
+
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (hasParkedSpot) ...[
+                      // Parked Status Card
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.green.shade200),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.local_parking,
+                              size: 60,
+                              color: Colors.green.shade600,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Currently Parked',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green.shade700,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Spot ${parkedSpot!.name} (${parkedSpot.type})',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.green.shade600,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: () => _unparkVehicle(parkedSpot),
+                                    icon: const Icon(Icons.directions_car),
+                                    label: const Text('Unpark'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (context) => const ParkingMapScreen(),
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.map),
+                                    label: const Text('View Map'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.blue,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    );
-                  },
-                  child: const Text('Find Parking'),
+                    ] else ...[
+                      // No Parking Status
+                      const Icon(
+                        Icons.local_parking,
+                        size: 80,
+                        color: Color(0xFF94A3B8),
+                      ),
+                      const SizedBox(height: 32),
+                      const Text(
+                        'No Active Parking',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF334155),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        "You currently don't have a parked vehicle.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Color(0xFF94A3B8),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1173D4),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            textStyle: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => const ParkingMapScreen(),
+                              ),
+                            );
+                          },
+                          child: const Text('Find Parking'),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0x1A1173D4),
+                          foregroundColor: const Color(0xFF1173D4),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                          elevation: 0,
+                        ),
+                        onPressed: () {
+                          // Find the MainNavigationWrapper and switch to history tab
+                          final mainNavWrapper = context.findAncestorStateOfType<MainNavigationWrapperState>();
+                          if (mainNavWrapper != null) {
+                            mainNavWrapper.switchToTab(1); // Switch to History tab
+                          }
+                        },
+                        child: const Text('My Parking History'),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0x1A1173D4),
-                    foregroundColor: const Color(0xFF1173D4),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    textStyle: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                    elevation: 0,
-                  ),
-                  onPressed: () {
-                    // Find the MainNavigationWrapper and switch to history tab
-                    final mainNavWrapper = context.findAncestorStateOfType<MainNavigationWrapperState>();
-                    if (mainNavWrapper != null) {
-                      mainNavWrapper.switchToTab(1); // Switch to History tab
-                    }
-                  },
-                  child: const Text('My Parking History'),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
+  }
+
+  Future<void> _unparkVehicle(ParkingSpot spot) async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Unpark Vehicle'),
+        content: Text('Are you sure you want to unpark from spot ${spot.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _confirmUnpark(spot);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Unpark'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmUnpark(ParkingSpot spot) async {
+    try {
+      final now = DateTime.now();
+      
+      // Update the parking spot to mark it as unoccupied
+      await _firestore
+          .collection('parking_spots')
+          .doc(spot.id)
+          .update({
+        'isOccupied': false,
+        'occupiedBy': FieldValue.delete(), // Remove the field entirely
+        'occupiedAt': FieldValue.delete(), // Remove the field entirely
+        'updatedAt': now.toIso8601String(),
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Successfully unparked from spot ${spot.name}!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error unparking vehicle: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

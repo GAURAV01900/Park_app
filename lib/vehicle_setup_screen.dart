@@ -185,7 +185,7 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
                 const SizedBox(height: 16),
                 // Vehicle Type
                 DropdownButtonFormField<String>(
-                  value: _selectedType,
+                  initialValue: _selectedType,
                   decoration: const InputDecoration(
                     filled: true,
                     fillColor: Colors.white,

@@ -1,10 +1,124 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'vehicles_screen.dart';
 import 'profile_screen.dart';
+import 'parking_map_screen.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  String? _userRole;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    try {
+      final userDoc = await _firestore
+          .collection('users')
+          .doc(_auth.currentUser?.uid)
+          .get();
+      
+      if (userDoc.exists) {
+        setState(() {
+          _userRole = userDoc.data()?['role'];
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  bool get _isAdmin => _userRole == 'admin' || _userRole == 'staff';
+
+  Future<void> _resetParkingSpots() async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reset Parking Spots'),
+        content: const Text(
+          'This will delete all existing parking spots and create new ones. '
+          'All current parking data will be lost. Are you sure?'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _confirmResetParkingSpots();
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmResetParkingSpots() async {
+    try {
+      // Delete all existing spots
+      final batch = _firestore.batch();
+      final spotsSnapshot = await _firestore.collection('parking_spots').get();
+      
+      for (var doc in spotsSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      await batch.commit();
+      
+      // Wait a moment for the deletion to complete
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // Navigate to parking map screen which will create new spots
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const ParkingMapScreen(),
+        ),
+      );
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Parking spots have been reset successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error resetting parking spots: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   void _showLogoutDialog(BuildContext context) {
     showDialog(
@@ -58,6 +172,13 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFEEF2F7),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFEEF2F7),
       appBar: AppBar(
@@ -133,6 +254,61 @@ class SettingsScreen extends StatelessWidget {
                   ],
                 ),
               ),
+              // Admin section
+              if (_isAdmin) ...[
+                const SizedBox(height: 20),
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.1),
+                        spreadRadius: 1,
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(12),
+                            topRight: Radius.circular(12),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.admin_panel_settings, color: Colors.orange.shade700),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Admin Panel',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange.shade700,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.local_parking, color: Colors.red),
+                        title: const Text('Reset Parking Spots'),
+                        subtitle: const Text('Delete and recreate all parking spots'),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        onTap: _resetParkingSpots,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 30),
               SizedBox(
                 width: double.infinity,
