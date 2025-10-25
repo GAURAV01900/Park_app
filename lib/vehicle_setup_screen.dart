@@ -342,21 +342,6 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                // Skip Button
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton(
-                    onPressed: _done,
-                    child: const Text(
-                      "I'll do this later",
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
                 // Existing Vehicles Section
                 StreamBuilder<QuerySnapshot>(
                   stream: _firestore

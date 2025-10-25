@@ -17,6 +17,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _rollNumberController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   String? _selectedRole; // student, faculty, staff
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -40,7 +41,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
         await _firestore.collection('users').doc(credential.user!.uid).set({
           'name': _nameController.text.trim(),
           'email': _emailController.text.trim(),
-          'rollNumber': _rollNumberController.text.trim(),
+          'phoneNumber': _phoneController.text.trim(),
+          'rollNumber': _selectedRole == 'student' ? _rollNumberController.text.trim() : '',
           'role': _selectedRole,
           'createdAt': FieldValue.serverTimestamp(),
         });
@@ -66,6 +68,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _rollNumberController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -73,15 +76,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFEEF2F7),
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // App name added here
                 const Text(
@@ -116,23 +118,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   value!.isEmpty ? 'Enter your full name' : null,
                 ),
                 const SizedBox(height: 20),
-                TextFormField(
-                  controller: _rollNumberController,
-                  decoration: const InputDecoration(
-                    filled: true,
-                    fillColor: Colors.white,
-                    prefixIcon: Icon(Icons.badge_outlined),
-                    labelText: 'Roll Number',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(12)),
-                    ),
-                  ),
-                  validator: (value) =>
-                      value == null || value.isEmpty ? 'Enter your roll number' : null,
-                ),
-                const SizedBox(height: 20),
                 DropdownButtonFormField<String>(
-                  initialValue: _selectedRole,
+                  value: _selectedRole,
                   decoration: const InputDecoration(
                     filled: true,
                     fillColor: Colors.white,
@@ -150,12 +137,38 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   onChanged: (value) {
                     setState(() {
                       _selectedRole = value;
+                      // Clear roll number if role is not student
+                      if (value != 'student') {
+                        _rollNumberController.clear();
+                      }
                     });
                   },
                   validator: (value) => value == null || value.isEmpty
                       ? 'Please select your role'
                       : null,
                 ),
+                // Show roll number field only for students
+                if (_selectedRole == 'student') ...[
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: _rollNumberController,
+                    decoration: const InputDecoration(
+                      filled: true,
+                      fillColor: Colors.white,
+                      prefixIcon: Icon(Icons.badge_outlined),
+                      labelText: 'Roll Number',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(12)),
+                      ),
+                    ),
+                    validator: (value) {
+                      if (_selectedRole == 'student') {
+                        return value == null || value.isEmpty ? 'Enter your roll number' : null;
+                      }
+                      return null;
+                    },
+                  ),
+                ],
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: _emailController,
@@ -170,6 +183,31 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                   validator: (value) =>
                   value!.isEmpty ? 'Enter your email' : null,
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white,
+                    prefixIcon: Icon(Icons.phone_outlined),
+                    labelText: 'Phone Number',
+                    hintText: 'Enter your phone number',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(12)),
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Enter your phone number';
+                    }
+                    // Basic phone number validation (at least 10 digits)
+                    if (value.replaceAll(RegExp(r'[^\d]'), '').length < 10) {
+                      return 'Enter a valid phone number';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
@@ -218,7 +256,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                     ),
                   ],
-                )
+                ),
+                const SizedBox(height: 50), // Add extra space at bottom for scrolling
               ],
             ),
           ),

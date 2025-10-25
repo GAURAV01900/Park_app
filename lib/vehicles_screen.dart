@@ -24,12 +24,6 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: Colors.black,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _navigateToAddEditVehicle(),
-          ),
-        ],
       ),
       body: SafeArea(
         child: StreamBuilder<QuerySnapshot>(
@@ -100,21 +94,14 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                       ),
                     ),
                     const SizedBox(height: 32),
-                    ElevatedButton.icon(
-                      onPressed: _navigateToAddEditVehicle,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add Vehicle'),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
-                        ),
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                    const Text(
+                      'Tap the + button below to add your first vehicle',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey,
+                        fontStyle: FontStyle.italic,
                       ),
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),

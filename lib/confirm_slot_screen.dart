@@ -1,10 +1,79 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ConfirmSlotScreen extends StatelessWidget {
   final String slotId;
   final bool available;
 
   const ConfirmSlotScreen({super.key, required this.slotId, required this.available});
+
+  Future<void> _checkExistingParkingAndBook(BuildContext context) async {
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) return;
+
+      // Check if user already has an active parking spot
+      final existingSpotQuery = await FirebaseFirestore.instance
+          .collection('parking_spots')
+          .where('occupiedBy', isEqualTo: userId)
+          .where('isOccupied', isEqualTo: true)
+          .get();
+
+      if (existingSpotQuery.docs.isNotEmpty) {
+        final existingSpotData = existingSpotQuery.docs.first.data();
+        final existingSpotName = existingSpotData['name'] ?? 'Unknown';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('You are already parked at spot $existingSpotName. Please unpark first before parking at another spot.'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+
+      // If no existing parking, proceed with booking
+      _showBookingConfirmation(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error checking existing parking: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showBookingConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Booking'),
+        content: Text('Do you want to book slot $slotId?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // TODO: Implement actual booking logic here
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Slot $slotId booking functionality not yet implemented'),
+                  backgroundColor: Colors.blue,
+                ),
+              );
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.green),
+            child: const Text('Book Slot'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +143,7 @@ class ConfirmSlotScreen extends StatelessWidget {
                         fontSize: 18,
                       ),
                     ),
-                    onPressed: () {},
+                    onPressed: () => _checkExistingParkingAndBook(context),
                     child: const Text('Book Slot'),
                   ),
                 ),
