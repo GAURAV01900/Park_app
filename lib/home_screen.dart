@@ -5,6 +5,7 @@ import 'parking_map_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'models/parking_spot.dart';
+import 'models/parking_history.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -28,9 +29,9 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text(
           'Parkapp',
           style: TextStyle(
-            color: Color(0xFF1A202C),
+            color: Color.fromARGB(255, 33, 150, 243),
             fontWeight: FontWeight.bold,
-            fontSize: 24,
+            fontSize: 28,
           ),
         ),
         actions: [
@@ -111,6 +112,50 @@ class _HomeScreenState extends State<HomeScreen> {
                                 color: Colors.green.shade600,
                               ),
                             ),
+                            if (parkedSpot.vehicleName != null || parkedSpot.isGuestVehicle) ...[
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.8),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      parkedSpot.isGuestVehicle 
+                                          ? Icons.person_outline 
+                                          : Icons.directions_car,
+                                      size: 16,
+                                      color: Colors.green.shade700,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      parkedSpot.isGuestVehicle 
+                                          ? 'Guest Vehicle'
+                                          : parkedSpot.vehicleName ?? 'Unknown Vehicle',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.green.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (parkedSpot.vehicleLicensePlate != null && !parkedSpot.isGuestVehicle) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  parkedSpot.vehicleLicensePlate!,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.green.shade600,
+                                  ),
+                                ),
+                              ],
+                            ],
                             const SizedBox(height: 16),
                             Row(
                               children: [
@@ -142,7 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     icon: const Icon(Icons.map),
                                     label: const Text('View Map'),
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.blue,
+                                      backgroundColor: const Color.fromARGB(255, 33, 150, 243),
                                       foregroundColor: Colors.white,
                                       padding: const EdgeInsets.symmetric(vertical: 12),
                                       shape: RoundedRectangleBorder(
@@ -271,22 +316,60 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _confirmUnpark(ParkingSpot spot) async {
     try {
       final now = DateTime.now();
+      final userId = _auth.currentUser?.uid;
       
-      // Update the parking spot to mark it as unoccupied
-      await _firestore
-          .collection('parking_spots')
-          .doc(spot.id)
-          .update({
+      if (userId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Calculate parking duration
+      final parkedAt = spot.occupiedAt ?? now;
+      final duration = now.difference(parkedAt);
+
+      // Create parking history record
+      final historyId = _firestore.collection('parking_history').doc().id;
+      final parkingHistory = ParkingHistory(
+        id: historyId,
+        userId: userId,
+        spotId: spot.id,
+        spotName: spot.name,
+        spotType: spot.type,
+        parkedAt: parkedAt,
+        unparkedAt: now,
+        duration: duration,
+        vehicleId: spot.vehicleId,
+        vehicleName: spot.vehicleName,
+        vehicleLicensePlate: spot.vehicleLicensePlate,
+        vehicleType: spot.vehicleType,
+        isGuestVehicle: spot.isGuestVehicle,
+        createdAt: now,
+      );
+
+      // Batch write to ensure both operations succeed or fail together
+      final batch = _firestore.batch();
+      
+      // Update the parking spot to mark it as unoccupied and clear vehicle data
+      batch.update(_firestore.collection('parking_spots').doc(spot.id), {
         'isOccupied': false,
         'occupiedBy': FieldValue.delete(), // Remove the field entirely
         'occupiedAt': FieldValue.delete(), // Remove the field entirely
+        'vehicleId': FieldValue.delete(), // Remove vehicle ID
+        'vehicleName': FieldValue.delete(), // Remove vehicle name
+        'vehicleLicensePlate': FieldValue.delete(), // Remove license plate
+        'vehicleType': FieldValue.delete(), // Remove vehicle type
+        'isGuestVehicle': false, // Reset guest vehicle flag
         'updatedAt': now.toIso8601String(),
       });
+
+      // Add parking history record
+      batch.set(_firestore.collection('parking_history').doc(historyId), parkingHistory.toMap());
+
+      await batch.commit();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Successfully unparked from spot ${spot.name}!'),
+            content: Text('Successfully unparked from spot ${spot.name}! Duration: ${parkingHistory.formattedDuration}'),
             backgroundColor: Colors.green,
           ),
         );

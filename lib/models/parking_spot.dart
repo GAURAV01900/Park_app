@@ -7,6 +7,11 @@ class ParkingSpot {
   final bool isOccupied;
   final String? occupiedBy; // User ID who parked here
   final DateTime? occupiedAt;
+  final String? vehicleId; // ID of the parked vehicle
+  final String? vehicleName; // Name of the parked vehicle
+  final String? vehicleLicensePlate; // License plate of the parked vehicle
+  final String? vehicleType; // Type of the parked vehicle (car, motorcycle, etc.)
+  final bool isGuestVehicle; // Whether it's a guest vehicle
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -19,6 +24,11 @@ class ParkingSpot {
     required this.isOccupied,
     this.occupiedBy,
     this.occupiedAt,
+    this.vehicleId,
+    this.vehicleName,
+    this.vehicleLicensePlate,
+    this.vehicleType,
+    this.isGuestVehicle = false,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -34,6 +44,11 @@ class ParkingSpot {
       'isOccupied': isOccupied,
       'occupiedBy': occupiedBy,
       'occupiedAt': occupiedAt?.toIso8601String(),
+      'vehicleId': vehicleId,
+      'vehicleName': vehicleName,
+      'vehicleLicensePlate': vehicleLicensePlate,
+      'vehicleType': vehicleType,
+      'isGuestVehicle': isGuestVehicle,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -50,6 +65,11 @@ class ParkingSpot {
       isOccupied: map['isOccupied'] ?? false,
       occupiedBy: map['occupiedBy'],
       occupiedAt: map['occupiedAt'] != null ? DateTime.parse(map['occupiedAt']) : null,
+      vehicleId: map['vehicleId'],
+      vehicleName: map['vehicleName'],
+      vehicleLicensePlate: map['vehicleLicensePlate'],
+      vehicleType: map['vehicleType'],
+      isGuestVehicle: map['isGuestVehicle'] ?? false,
       createdAt: DateTime.parse(map['createdAt'] ?? DateTime.now().toIso8601String()),
       updatedAt: DateTime.parse(map['updatedAt'] ?? DateTime.now().toIso8601String()),
     );
@@ -65,6 +85,11 @@ class ParkingSpot {
     bool? isOccupied,
     String? occupiedBy,
     DateTime? occupiedAt,
+    String? vehicleId,
+    String? vehicleName,
+    String? vehicleLicensePlate,
+    String? vehicleType,
+    bool? isGuestVehicle,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -77,6 +102,11 @@ class ParkingSpot {
       isOccupied: isOccupied ?? this.isOccupied,
       occupiedBy: occupiedBy ?? this.occupiedBy,
       occupiedAt: occupiedAt ?? this.occupiedAt,
+      vehicleId: vehicleId ?? this.vehicleId,
+      vehicleName: vehicleName ?? this.vehicleName,
+      vehicleLicensePlate: vehicleLicensePlate ?? this.vehicleLicensePlate,
+      vehicleType: vehicleType ?? this.vehicleType,
+      isGuestVehicle: isGuestVehicle ?? this.isGuestVehicle,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

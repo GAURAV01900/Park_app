@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'edit_profile_screen.dart';
+import 'vehicles_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -13,6 +15,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
+
+  // Profile picture options (same as edit profile screen)
+  final List<Map<String, dynamic>> _profilePictureOptions = [
+    {'name': 'Default', 'icon': Icons.person, 'color': 0xFF1173D4},
+    {'name': 'Student', 'icon': Icons.school, 'color': 0xFF4CAF50},
+    {'name': 'Professional', 'icon': Icons.business_center, 'color': 0xFF2196F3},
+    {'name': 'Creative', 'icon': Icons.palette, 'color': 0xFF9C27B0},
+    {'name': 'Tech', 'icon': Icons.computer, 'color': 0xFF607D8B},
+    {'name': 'Sports', 'icon': Icons.sports_soccer, 'color': 0xFFFF9800},
+    {'name': 'Music', 'icon': Icons.music_note, 'color': 0xFFE91E63},
+    {'name': 'Nature', 'icon': Icons.nature, 'color': 0xFF4CAF50},
+  ];
 
   @override
   void initState() {
@@ -59,11 +73,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: SafeArea(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : Padding(
+            : SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 10),
                     // Profile Header
                     Container(
                       width: double.infinity,
@@ -84,14 +98,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           CircleAvatar(
                             radius: 50,
-                            backgroundColor: Colors.blue.shade100,
-                            child: Text(
-                              _userData?['name']?.substring(0, 1).toUpperCase() ?? 'U',
-                              style: TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue.shade700,
-                              ),
+                            backgroundColor: _getProfilePictureColor().withOpacity(0.1),
+                            child: Icon(
+                              _getProfilePictureIcon(),
+                              size: 32,
+                              color: _getProfilePictureColor(),
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -113,7 +124,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
                     // User Details
                     Container(
                       width: double.infinity,
@@ -159,26 +170,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    // Edit Profile Button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Edit profile coming soon')),
-                          );
-                        },
-                        icon: const Icon(Icons.edit_outlined),
-                        label: const Text('Edit Profile'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          backgroundColor: Colors.blue,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                    const SizedBox(height: 16),
+                    // Action Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _navigateToEditProfile(),
+                            icon: const Icon(Icons.edit_outlined),
+                            label: const Text('Edit Profile'),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              backgroundColor: const Color(0xFF1173D4),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _navigateToManageVehicles(),
+                            icon: const Icon(Icons.directions_car_outlined),
+                            label: const Text('Manage Vehicles'),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              backgroundColor: Colors.white,
+                              foregroundColor: const Color(0xFF1173D4),
+                              side: const BorderSide(color: Color(0xFF1173D4)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -232,5 +260,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return '${date.day}/${date.month}/${date.year}';
     }
     return 'Unknown';
+  }
+
+  Future<void> _navigateToEditProfile() async {
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => EditProfileScreen(userData: _userData),
+      ),
+    );
+    
+    // Reload user data if profile was updated
+    if (result == true) {
+      _loadUserData();
+    }
+  }
+
+  void _navigateToManageVehicles() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const VehiclesScreen(),
+      ),
+    );
+  }
+
+  Color _getProfilePictureColor() {
+    final selectedProfilePicture = _userData?['profilePicture'] ?? 'Default';
+    final selectedOption = _profilePictureOptions.firstWhere(
+      (option) => option['name'] == selectedProfilePicture,
+      orElse: () => _profilePictureOptions[0],
+    );
+    return Color(selectedOption['color']);
+  }
+
+  IconData _getProfilePictureIcon() {
+    final selectedProfilePicture = _userData?['profilePicture'] ?? 'Default';
+    final selectedOption = _profilePictureOptions.firstWhere(
+      (option) => option['name'] == selectedProfilePicture,
+      orElse: () => _profilePictureOptions[0],
+    );
+    return selectedOption['icon'];
   }
 }

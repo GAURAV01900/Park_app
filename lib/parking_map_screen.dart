@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:math' as math;
 import 'models/parking_spot.dart';
+import 'select_vehicle_for_parking_screen.dart';
 
 class ParkingMapScreen extends StatefulWidget {
   const ParkingMapScreen({super.key});
@@ -14,11 +16,18 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   String _selectedVehicleType = '4-wheeler';
+  final TransformationController _transformationController = TransformationController();
 
   @override
   void initState() {
     super.initState();
     _checkAndCreateInitialSpots();
+  }
+
+  @override
+  void dispose() {
+    _transformationController.dispose();
+    super.dispose();
   }
 
   Future<void> _checkAndCreateInitialSpots() async {
@@ -174,12 +183,16 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               color: Colors.white,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              child: Column(
                 children: [
-                  _buildLegendItem(Colors.green, 'Available'),
-                  _buildLegendItem(Colors.red, 'Occupied'),
-                  _buildLegendItem(Colors.blue, 'Your Spot'),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildLegendItem(Colors.green, 'Available'),
+                      _buildLegendItem(Colors.red, 'Occupied'),
+                      _buildLegendItem(Colors.blue, 'Your Spot'),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -201,7 +214,11 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: StreamBuilder<QuerySnapshot>(
+                  child: InteractiveViewer(
+                    transformationController: _transformationController,
+                    minScale: 1.0,
+                    maxScale: 3.0,
+                    child: StreamBuilder<QuerySnapshot>(
                     stream: _firestore
                         .collection('parking_spots')
                         .where('type', isEqualTo: _selectedVehicleType)
@@ -385,13 +402,71 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
                       );
                     },
                   ),
+                  ),
                 ),
               ),
             ),
           ],
         ),
       ),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            heroTag: "zoom_in",
+            mini: true,
+            onPressed: () => _zoomIn(),
+            backgroundColor: Colors.white,
+            foregroundColor: const Color(0xFF1173D4),
+            child: const Icon(Icons.zoom_in),
+          ),
+          const SizedBox(height: 8),
+          FloatingActionButton(
+            heroTag: "zoom_out",
+            mini: true,
+            onPressed: () => _zoomOut(),
+            backgroundColor: Colors.white,
+            foregroundColor: const Color(0xFF1173D4),
+            child: const Icon(Icons.zoom_out),
+          ),
+          const SizedBox(height: 8),
+          FloatingActionButton(
+            heroTag: "reset_zoom",
+            mini: true,
+            onPressed: () => _resetZoom(),
+            backgroundColor: const Color(0xFF1173D4),
+            foregroundColor: Colors.white,
+            child: const Icon(Icons.center_focus_strong),
+          ),
+        ],
+      ),
     );
+  }
+
+  void _zoomIn() {
+    final Matrix4 currentMatrix = _transformationController.value.clone();
+    final double currentScale = currentMatrix.getMaxScaleOnAxis();
+    
+    if (currentScale < 3.0) {
+      final double newScale = (currentScale * 1.2).clamp(1.0, 3.0);
+      final Matrix4 newMatrix = Matrix4.identity()..scale(newScale);
+      _transformationController.value = newMatrix;
+    }
+  }
+
+  void _zoomOut() {
+    final Matrix4 currentMatrix = _transformationController.value.clone();
+    final double currentScale = currentMatrix.getMaxScaleOnAxis();
+    
+    if (currentScale > 1.0) {
+      final double newScale = (currentScale / 1.2).clamp(1.0, 3.0);
+      final Matrix4 newMatrix = Matrix4.identity()..scale(newScale);
+      _transformationController.value = newMatrix;
+    }
+  }
+
+  void _resetZoom() {
+    _transformationController.value = Matrix4.identity();
   }
 
   Widget _buildLegendItem(Color color, String label) {
@@ -423,37 +498,60 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
       spotColor = Colors.red; // Occupied by others
     }
 
+    // Calculate consistent positioning based on fixed aspect ratio
+    // Use a base width of 400 and height of 600 for consistent positioning
+    const double baseWidth = 400.0;
+    const double baseHeight = 600.0;
+    
+    // Calculate scale factors to maintain aspect ratio
+    final double scaleX = constraints.maxWidth / baseWidth;
+    final double scaleY = constraints.maxHeight / baseHeight;
+    final double scale = math.min(scaleX, scaleY); // Use the smaller scale to maintain aspect ratio
+    
+    // Calculate centered positioning
+    final double scaledWidth = baseWidth * scale;
+    final double scaledHeight = baseHeight * scale;
+    final double offsetX = (constraints.maxWidth - scaledWidth) / 2;
+    final double offsetY = (constraints.maxHeight - scaledHeight) / 2;
+    
+    // Calculate spot position with consistent scaling
+    final double spotX = offsetX + (spot.x * scaledWidth) - (45 * scale / 2);
+    final double spotY = offsetY + (spot.y * scaledHeight) - (25 * scale / 2);
+
     return Positioned(
-      left: constraints.maxWidth * spot.x - 21,
-      top: constraints.maxHeight * spot.y - 20,
+      left: spotX,
+      top: spotY,
       child: GestureDetector(
         onTap: () => _showParkingConfirmation(spot),
-        child: Container(
-          width: 45,
-          height: 25,
-          decoration: BoxDecoration(
-            color: spotColor,
-            shape: BoxShape.rectangle,
-            border: Border.all(
-              color: Colors.white,
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                spreadRadius: 1,
-                blurRadius: 3,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Text(
-              spot.name,
-              style: const TextStyle(
+        child: Transform.scale(
+          scale: scale,
+          child: Container(
+            width: 45,
+            height: 25,
+            decoration: BoxDecoration(
+              color: spotColor,
+              shape: BoxShape.rectangle,
+              border: Border.all(
                 color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  spreadRadius: 1,
+                  blurRadius: 3,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Text(
+                spot.name,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -473,6 +571,47 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
       return;
     }
 
+    // Check if user already has an active parking spot
+    _checkExistingParking(spot);
+  }
+
+  Future<void> _checkExistingParking(ParkingSpot spot) async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) return;
+
+      // Check if user already has an active parking spot
+      final existingSpotQuery = await _firestore
+          .collection('parking_spots')
+          .where('occupiedBy', isEqualTo: userId)
+          .where('isOccupied', isEqualTo: true)
+          .get();
+
+      if (existingSpotQuery.docs.isNotEmpty) {
+        final existingSpot = ParkingSpot.fromMap(existingSpotQuery.docs.first.data());
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('You are already parked at spot ${existingSpot.name}. Please unpark first before parking at another spot.'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+
+      // If no existing parking, show confirmation dialog
+      _showParkingDialog(spot);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error checking existing parking: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showParkingDialog(ParkingSpot spot) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -486,48 +625,18 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              _parkVehicle(spot);
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => SelectVehicleForParkingScreen(spot: spot),
+                ),
+              );
             },
             style: TextButton.styleFrom(foregroundColor: Colors.green),
-            child: const Text('Park Here'),
+            child: const Text('Select Vehicle'),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _parkVehicle(ParkingSpot spot) async {
-    try {
-      final now = DateTime.now();
-      final updatedSpot = spot.copyWith(
-        isOccupied: true,
-        occupiedBy: _auth.currentUser?.uid,
-        occupiedAt: now,
-        updatedAt: now,
-      );
-
-      await _firestore
-          .collection('parking_spots')
-          .doc(spot.id)
-          .update(updatedSpot.toMap());
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Successfully parked at spot ${spot.name}!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error parking vehicle: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
 }
