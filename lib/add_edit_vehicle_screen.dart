@@ -119,7 +119,7 @@ class _AddEditVehicleScreenState extends State<AddEditVehicleScreen> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  initialValue: _selectedType,
+                  value: _selectedType,
                   decoration: const InputDecoration(
                     filled: true,
                     fillColor: Colors.white,
