@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'vehicles_screen.dart';
 import 'profile_screen.dart';
 import 'parking_map_screen.dart';
+import 'admin_parking_management_screen.dart';
+import 'admin_dashboard_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -299,11 +301,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                       ListTile(
-                        leading: const Icon(Icons.local_parking, color: Colors.red),
-                        title: const Text('Reset Parking Spots'),
-                        subtitle: const Text('Delete and recreate all parking spots'),
+                        leading: const Icon(Icons.dashboard, color: Colors.purple),
+                        title: const Text('Admin Dashboard'),
+                        subtitle: const Text('Overview and quick access to admin features'),
                         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                        onTap: _resetParkingSpots,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const AdminDashboardScreen(),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),

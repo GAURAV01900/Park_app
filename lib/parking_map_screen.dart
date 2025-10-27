@@ -18,12 +18,41 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final TransformationController _transformationController = TransformationController();
+  String? _userRole;
+  bool _isLoadingRole = false;
 
   @override
   void initState() {
     super.initState();
     _checkAndCreateInitialSpots();
+    _loadUserRole();
   }
+
+  Future<void> _loadUserRole() async {
+    try {
+      final userDoc = await _firestore
+          .collection('users')
+          .doc(_auth.currentUser?.uid)
+          .get();
+      
+      if (userDoc.exists) {
+        setState(() {
+          _userRole = userDoc.data()?['role'];
+          _isLoadingRole = false;
+        });
+      } else {
+        setState(() {
+          _isLoadingRole = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoadingRole = false;
+      });
+    }
+  }
+
+  bool get _isAdmin => _userRole == 'admin' || _userRole == 'staff';
 
   @override
   void dispose() {
@@ -642,6 +671,12 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
       _showGuestParkingDialog();
       return;
     }
+
+    // If admin, show admin options
+    if (_isAdmin) {
+      _showAdminParkingOptions(spot);
+      return;
+    }
     
     if (spot.isOccupied) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -655,6 +690,126 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
 
     // Check if user already has an active parking spot
     _checkExistingParking(spot);
+  }
+
+  void _showAdminParkingOptions(ParkingSpot spot) async {
+    String? userName = 'Loading...';
+    
+    if (spot.isOccupied && spot.occupiedBy != null) {
+      try {
+        final userDoc = await _firestore.collection('users').doc(spot.occupiedBy).get();
+        if (userDoc.exists) {
+          userName = userDoc.data()?['name'] as String?;
+        }
+      } catch (e) {
+        userName = 'Unknown';
+      }
+    }
+    
+    if (context.mounted) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Spot ${spot.name}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Type: ${spot.type}'),
+              Text('Status: ${spot.isOccupied ? "Occupied" : "Available"}'),
+              if (spot.isOccupied) ...[
+                const SizedBox(height: 8),
+                Text('Occupied by: $userName'),
+                if (spot.vehicleName != null)
+                  Text('Vehicle: ${spot.vehicleName}'),
+              ],
+            ],
+          ),
+          actions: [
+            if (spot.isOccupied)
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _showForceUnparkConfirmation(spot);
+                },
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Force Unpark'),
+              ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                if (!spot.isOccupied) {
+                  _checkExistingParking(spot);
+                }
+              },
+              child: const Text('Park Vehicle'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  void _showForceUnparkConfirmation(ParkingSpot spot) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Force Unpark'),
+        content: Text('Are you sure you want to force unpark spot ${spot.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _forceUnpark(spot);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Force Unpark'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _forceUnpark(ParkingSpot spot) async {
+    try {
+      await _firestore.collection('parking_spots').doc(spot.id).update({
+        'isOccupied': false,
+        'occupiedBy': FieldValue.delete(),
+        'occupiedAt': FieldValue.delete(),
+        'vehicleId': FieldValue.delete(),
+        'vehicleName': FieldValue.delete(),
+        'vehicleLicensePlate': FieldValue.delete(),
+        'vehicleType': FieldValue.delete(),
+        'isGuestVehicle': false,
+        'updatedAt': DateTime.now().toIso8601String(),
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Spot force unparked successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _showGuestParkingDialog() {

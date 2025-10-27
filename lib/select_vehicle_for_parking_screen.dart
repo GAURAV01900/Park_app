@@ -189,40 +189,44 @@ class _SelectVehicleForParkingScreenState extends State<SelectVehicleForParkingS
                     );
                   }
 
-                  final vehicles = snapshot.data?.docs
+                  final allVehicles = snapshot.data?.docs
                       .map((doc) => Vehicle.fromMap(doc.data() as Map<String, dynamic>))
                       .toList() ?? [];
 
+                  // Filter vehicles based on spot type
+                  final vehicles = _filterVehiclesBySpotType(allVehicles);
+
                   if (vehicles.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.directions_car_outlined,
-                            size: 64,
-                            color: Colors.grey.shade400,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No vehicles added yet',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.grey.shade600,
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              _getSpotIcon(widget.spot.type),
+                              size: 64,
+                              color: Colors.grey.shade400,
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Add a vehicle to your profile first',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey.shade500,
+                            const SizedBox(height: 16),
+                            Text(
+                              'No compatible vehicles',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.grey.shade600,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    );
+                            const SizedBox(height: 8),
+                            Text(
+                              'Add a ${widget.spot.type} vehicle to your profile',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
                   }
 
                   return ListView.builder(
@@ -231,6 +235,7 @@ class _SelectVehicleForParkingScreenState extends State<SelectVehicleForParkingS
                     itemBuilder: (context, index) {
                       final vehicle = vehicles[index];
                       final isSelected = _selectedVehicle?.id == vehicle.id && !_isGuestVehicle;
+                      // Note: All vehicles in this list are already filtered to be compatible
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12),
@@ -258,7 +263,7 @@ class _SelectVehicleForParkingScreenState extends State<SelectVehicleForParkingS
                                 color: isSelected ? const Color(0xFF1173D4) : Colors.grey.shade600,
                               ),
                             ),
-                            title: Text(
+                              title: Text(
                               vehicle.name,
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
@@ -312,6 +317,61 @@ class _SelectVehicleForParkingScreenState extends State<SelectVehicleForParkingS
               ),
             ),
 
+            // Info Card for Vehicle Type Restriction
+            Builder(
+              builder: (context) {
+                final allVehiclesSnapshot = StreamBuilder<QuerySnapshot>(
+                  stream: _firestore
+                      .collection('users')
+                      .doc(_auth.currentUser?.uid)
+                      .collection('vehicles')
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const SizedBox.shrink();
+                    
+                    final allVehicles = snapshot.data!.docs
+                        .map((doc) => Vehicle.fromMap(doc.data() as Map<String, dynamic>))
+                        .toList();
+                    
+                    final compatibleVehicles = _filterVehiclesBySpotType(allVehicles);
+                    
+                    if (allVehicles.isNotEmpty && compatibleVehicles.isEmpty) {
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.orange.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: Colors.orange.shade700,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'This spot is for ${widget.spot.type} only. Add a ${widget.spot.type} vehicle to park here.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.orange.shade800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                );
+                return allVehiclesSnapshot;
+              },
+            ),
+
             // Park Button
             Container(
               padding: const EdgeInsets.all(16),
@@ -363,6 +423,45 @@ class _SelectVehicleForParkingScreenState extends State<SelectVehicleForParkingS
         return Icons.pedal_bike;
       default:
         return Icons.directions_car;
+    }
+  }
+
+  IconData _getSpotIcon(String spotType) {
+    if (spotType == '2-wheeler') {
+      return Icons.two_wheeler;
+    } else {
+      return Icons.directions_car;
+    }
+  }
+
+  List<Vehicle> _filterVehiclesBySpotType(List<Vehicle> vehicles) {
+    return vehicles.where((vehicle) {
+      // Map vehicle types to spot types
+      if (widget.spot.type == '2-wheeler') {
+        // 2-wheeler vehicles
+        return vehicle.type.toLowerCase() == 'motorcycle' || 
+               vehicle.type.toLowerCase() == 'bicycle' ||
+               vehicle.type.toLowerCase() == 'scooter';
+      } else {
+        // 4-wheeler vehicles
+        return vehicle.type.toLowerCase() == 'car' || 
+               vehicle.type.toLowerCase() == 'truck' ||
+               vehicle.type.toLowerCase() == 'suv' ||
+               vehicle.type.toLowerCase() == 'van';
+      }
+    }).toList();
+  }
+
+  bool _isVehicleCompatible(Vehicle vehicle) {
+    if (widget.spot.type == '2-wheeler') {
+      return vehicle.type.toLowerCase() == 'motorcycle' || 
+             vehicle.type.toLowerCase() == 'bicycle' ||
+             vehicle.type.toLowerCase() == 'scooter';
+    } else {
+      return vehicle.type.toLowerCase() == 'car' || 
+             vehicle.type.toLowerCase() == 'truck' ||
+             vehicle.type.toLowerCase() == 'suv' ||
+             vehicle.type.toLowerCase() == 'van';
     }
   }
 
