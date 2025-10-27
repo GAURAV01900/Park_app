@@ -8,7 +8,10 @@ import 'models/parking_spot.dart';
 import 'models/parking_history.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final bool isGuest;
+  final String? guestName;
+  
+  const HomeScreen({super.key, this.isGuest = false, this.guestName});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -17,6 +20,63 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  String? _userName;
+  bool _isLoadingName = true;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.isGuest) {
+      _loadUserName();
+    } else {
+      _isLoadingName = false;
+    }
+  }
+
+  Future<void> _loadUserName() async {
+    try {
+      final user = _auth.currentUser;
+      if (user != null) {
+        final doc = await _firestore.collection('users').doc(user.uid).get();
+        if (doc.exists && doc.data() != null) {
+          setState(() {
+            _userName = doc.data()!['name'] as String?;
+            _isLoadingName = false;
+          });
+        } else {
+          setState(() {
+            _isLoadingName = false;
+          });
+        }
+      } else {
+        setState(() {
+          _isLoadingName = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoadingName = false;
+      });
+    }
+  }
+
+  String _getGreeting() {
+    if (widget.isGuest) {
+      return 'Welcome, ${widget.guestName ?? 'Guest'}';
+    }
+    
+    if (_isLoadingName) {
+      return 'Welcome';
+    }
+    
+    if (_userName != null && _userName!.isNotEmpty) {
+      // Extract first name
+      final firstName = _userName!.split(' ').first;
+      return 'Hello, $firstName!';
+    }
+    
+    return 'Welcome';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,9 +86,9 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: const Color(0xFFF6F7F8),
         elevation: 0,
         centerTitle: true,
-        title: const Text(
-          'Parkapp',
-          style: TextStyle(
+        title: Text(
+          _getGreeting(),
+          style: const TextStyle(
             color: Color.fromARGB(255, 33, 150, 243),
             fontWeight: FontWeight.bold,
             fontSize: 28,
@@ -49,36 +109,105 @@ class _HomeScreenState extends State<HomeScreen> {
         leading: const SizedBox(width: 48),
       ),
       body: SafeArea(
-        child: StreamBuilder<QuerySnapshot>(
-          stream: _firestore
-              .collection('parking_spots')
-              .where('occupiedBy', isEqualTo: _auth.currentUser?.uid)
-              .where('isOccupied', isEqualTo: true)
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
+        child: widget.isGuest
+            ? _buildGuestView()
+            : _buildAuthenticatedView(),
+      ),
+    );
+  }
 
-            if (snapshot.hasError) {
-              return Center(
-                child: Text('Error: ${snapshot.error}'),
-              );
-            }
+  Widget _buildGuestView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.person_outline,
+              size: 80,
+              color: Color(0xFF94A3B8),
+            ),
+            const SizedBox(height: 32),
+            const Text(
+              'Guest Mode',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF334155),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'You are browsing as a guest. You can view available parking spots, but need to login to park your vehicle.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Color(0xFF94A3B8),
+              ),
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1173D4),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  textStyle: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const ParkingMapScreen(isGuest: true),
+                    ),
+                  );
+                },
+                child: const Text('View Available Parking'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-            final userParkedSpots = snapshot.data?.docs ?? [];
-            final hasParkedSpot = userParkedSpots.isNotEmpty;
-            final parkedSpot = hasParkedSpot 
-                ? ParkingSpot.fromMap(userParkedSpots.first.data() as Map<String, dynamic>)
-                : null;
+  Widget _buildAuthenticatedView() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _firestore
+          .collection('parking_spots')
+          .where('occupiedBy', isEqualTo: _auth.currentUser?.uid)
+          .where('isOccupied', isEqualTo: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (hasParkedSpot) ...[
+        if (snapshot.hasError) {
+          return Center(
+            child: Text('Error: ${snapshot.error}'),
+          );
+        }
+
+        final userParkedSpots = snapshot.data?.docs ?? [];
+        final hasParkedSpot = userParkedSpots.isNotEmpty;
+        final parkedSpot = hasParkedSpot 
+            ? ParkingSpot.fromMap(userParkedSpots.first.data() as Map<String, dynamic>)
+            : null;
+
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (hasParkedSpot) ...[
                       // Parked Status Card
                       Container(
                         width: double.infinity,
@@ -180,7 +309,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     onPressed: () {
                                       Navigator.of(context).push(
                                         MaterialPageRoute(
-                                          builder: (context) => const ParkingMapScreen(),
+                                          builder: (context) => ParkingMapScreen(isGuest: widget.isGuest),
                                         ),
                                       );
                                     },
@@ -244,7 +373,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           onPressed: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (context) => const ParkingMapScreen(),
+                                builder: (context) => ParkingMapScreen(isGuest: widget.isGuest),
                               ),
                             );
                           },
@@ -284,9 +413,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             );
           },
-        ),
-      ),
-    );
+        );
   }
 
   Future<void> _unparkVehicle(ParkingSpot spot) async {

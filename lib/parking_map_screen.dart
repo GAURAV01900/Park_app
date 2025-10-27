@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:math' as math;
 import 'models/parking_spot.dart';
 import 'select_vehicle_for_parking_screen.dart';
+import 'login_screen.dart';
 
 class ParkingMapScreen extends StatefulWidget {
-  const ParkingMapScreen({super.key});
+  final bool isGuest;
+  
+  const ParkingMapScreen({super.key, this.isGuest = false});
 
   @override
   State<ParkingMapScreen> createState() => _ParkingMapScreenState();
@@ -15,7 +17,6 @@ class ParkingMapScreen extends StatefulWidget {
 class _ParkingMapScreenState extends State<ParkingMapScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  String _selectedVehicleType = '4-wheeler';
   final TransformationController _transformationController = TransformationController();
 
   @override
@@ -37,8 +38,98 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
     if (spotsSnapshot.docs.isEmpty) {
       // Create initial parking spots if none exist
       await _createInitialParkingSpots();
+    } else {
+      // Remove old M1-M6 and C1-C6 spots
+      await _removeOldTwoWheelerSpots();
+      // Add missing spots if they don't exist
+      await _addMissingSpots();
     }
-    // Don't automatically update existing spots - this should be admin-only
+  }
+
+  Future<void> _removeOldTwoWheelerSpots() async {
+    try {
+      final spotsSnapshot = await _firestore.collection('parking_spots').get();
+      
+      for (var doc in spotsSnapshot.docs) {
+        final data = doc.data();
+        final name = data['name'] as String?;
+        final type = data['type'] as String?;
+        
+        // Delete all old 2-wheeler spots that aren't E1-E10
+        if (type == '2-wheeler' && name != null && !name.startsWith('E')) {
+          await _firestore.collection('parking_spots').doc(doc.id).delete();
+        }
+      }
+    } catch (e) {
+      // Silently fail if there's an error - spots may not exist
+    }
+  }
+
+  Future<void> _addMissingSpots() async {
+    // Get existing spot names
+    final existingSpots = await _firestore.collection('parking_spots').get();
+    final existingNames = existingSpots.docs.map((doc) => doc.data()['name'] as String).toSet();
+    
+    final now = DateTime.now();
+    
+    // 2-wheeler spots on either side of the passage (vertical road at x=0.265)
+    // Left side of passage - 8 spots
+    final twoWheelerSpotsCompEne = [
+      {'name': 'E1', 'x': 0.20, 'y': 0.79},
+      {'name': 'E2', 'x': 0.20, 'y': 0.81},
+      {'name': 'E3', 'x': 0.20, 'y': 0.83},
+      {'name': 'E4', 'x': 0.20, 'y': 0.87},
+      {'name': 'E5', 'x': 0.20, 'y': 0.91},
+      {'name': 'E6', 'x': 0.20, 'y': 0.95},
+      {'name': 'E7', 'x': 0.20, 'y': 0.99},
+      {'name': 'E8', 'x': 0.20, 'y': 1.03},
+      // Right side of passage - 8 spots
+      {'name': 'E9', 'x': 0.354, 'y': 0.75},
+      {'name': 'E10', 'x': 0.354, 'y': 0.79},
+      {'name': 'E11', 'x': 0.354, 'y': 0.83},
+      {'name': 'E12', 'x': 0.354, 'y': 0.87},
+      {'name': 'E13', 'x': 0.354, 'y': 0.91},
+      {'name': 'E14', 'x': 0.354, 'y': 0.95},
+      {'name': 'E15', 'x': 0.354, 'y': 0.99},
+      {'name': 'E16', 'x': 0.354, 'y': 1.03},
+    ];
+
+    // Add or update E1-E16 spots
+    for (var spot in twoWheelerSpotsCompEne) {
+      if (!existingNames.contains(spot['name'])) {
+        // Add new spot
+        final parkingSpot = ParkingSpot(
+          id: _firestore.collection('parking_spots').doc().id,
+          name: spot['name'] as String,
+          type: '2-wheeler',
+          x: spot['x'] as double,
+          y: spot['y'] as double,
+          isOccupied: false,
+          createdAt: now,
+          updatedAt: now,
+        );
+        
+        await _firestore
+            .collection('parking_spots')
+            .doc(parkingSpot.id)
+            .set(parkingSpot.toMap());
+      } else {
+        // Update existing spot position if coordinates changed
+        final existingDoc = existingSpots.docs.firstWhere((doc) => doc.data()['name'] == spot['name']);
+        final existingX = existingDoc.data()['x'] as double;
+        final existingY = existingDoc.data()['y'] as double;
+        final newX = spot['x'] as double;
+        final newY = spot['y'] as double;
+        
+        if (existingX != newX || existingY != newY) {
+          await _firestore.collection('parking_spots').doc(existingDoc.id).update({
+            'x': newX,
+            'y': newY,
+            'updatedAt': now.toIso8601String(),
+          });
+        }
+      }
+    }
   }
 
 
@@ -83,14 +174,26 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
       {'name': 'B15', 'x': 0.65, 'y': 0.61},
     ];
 
-    // 2-wheeler parking spots - Near Computer Department building (bottom row)
-    final twoWheelerSpots = [
-      {'name': 'M1', 'x': 0.2, 'y': 0.9},
-      {'name': 'M2', 'x': 0.3, 'y': 0.9},
-      {'name': 'M3', 'x': 0.4, 'y': 0.9},
-      {'name': 'M4', 'x': 0.6, 'y': 0.9},
-      {'name': 'M5', 'x': 0.7, 'y': 0.9},
-      {'name': 'M6', 'x': 0.8, 'y': 0.9},
+    // 2-wheeler parking spots - On either side of the passage
+    final twoWheelerSpotsCompEne = [
+      // Left side of passage - 8 spots
+      {'name': 'E1', 'x': 0.18, 'y': 0.75},
+      {'name': 'E2', 'x': 0.18, 'y': 0.79},
+      {'name': 'E3', 'x': 0.18, 'y': 0.83},
+      {'name': 'E4', 'x': 0.18, 'y': 0.87},
+      {'name': 'E5', 'x': 0.18, 'y': 0.91},
+      {'name': 'E6', 'x': 0.18, 'y': 0.95},
+      {'name': 'E7', 'x': 0.18, 'y': 0.99},
+      {'name': 'E8', 'x': 0.18, 'y': 1.03},
+      // Right side of passage - 8 spots
+      {'name': 'E9', 'x': 0.33, 'y': 0.75},
+      {'name': 'E10', 'x': 0.33, 'y': 0.79},
+      {'name': 'E11', 'x': 0.33, 'y': 0.83},
+      {'name': 'E12', 'x': 0.33, 'y': 0.87},
+      {'name': 'E13', 'x': 0.33, 'y': 0.91},
+      {'name': 'E14', 'x': 0.33, 'y': 0.95},
+      {'name': 'E15', 'x': 0.33, 'y': 0.99},
+      {'name': 'E16', 'x': 0.33, 'y': 1.03},
     ];
 
     // Create 4-wheeler spots - Left side
@@ -131,8 +234,8 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
           .set(parkingSpot.toMap());
     }
 
-    // Create 2-wheeler spots
-    for (var spot in twoWheelerSpots) {
+    // Create 2-wheeler spots along Comp/Ene building (vertical)
+    for (var spot in twoWheelerSpotsCompEne) {
       final parkingSpot = ParkingSpot(
         id: _firestore.collection('parking_spots').doc().id,
         name: spot['name'] as String,
@@ -160,21 +263,6 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: Colors.black,
-        actions: [
-          DropdownButton<String>(
-            value: _selectedVehicleType,
-            items: const [
-              DropdownMenuItem(value: '2-wheeler', child: Text('2-Wheeler')),
-              DropdownMenuItem(value: '4-wheeler', child: Text('4-Wheeler')),
-            ],
-            onChanged: (value) {
-              setState(() {
-                _selectedVehicleType = value!;
-              });
-            },
-          ),
-          const SizedBox(width: 16),
-        ],
       ),
       body: SafeArea(
         child: Column(
@@ -221,7 +309,6 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
                     child: StreamBuilder<QuerySnapshot>(
                     stream: _firestore
                         .collection('parking_spots')
-                        .where('type', isEqualTo: _selectedVehicleType)
                         .snapshots(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
@@ -244,24 +331,26 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
                           .map((doc) => ParkingSpot.fromMap(doc.data() as Map<String, dynamic>))
                           .toList();
 
-                      return LayoutBuilder(
-                        builder: (context, constraints) {
-                          return Stack(
-                            children: [
-                              // Background map
-                              Container(
-                                width: constraints.maxWidth,
-                                height: constraints.maxHeight,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      Colors.grey.shade200,
-                                      Colors.grey.shade300,
-                                    ],
-                                  ),
+                      // Fixed dimensions for the map
+                      return SizedBox(
+                        width: 400.0,
+                        height: 600.0,
+                        child: Stack(
+                          children: [
+                            // Background map
+                            Container(
+                              width: 400.0,
+                              height: 600.0,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.grey.shade200,
+                                    Colors.grey.shade300,
+                                  ],
                                 ),
+                              ),
                                 child: Stack(
                                   children: [
                                     // Horizontal road at top (perpendicular to main road)
@@ -269,8 +358,8 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
                                       left: 0,
                                       top: -20, // Extends above the map
                                       child: Container(
-                                        width: constraints.maxWidth,
-                                        height: 30, // Increased height
+                                        width: 400.0,
+                                        height: 30,
                                         decoration: BoxDecoration(
                                           color: Colors.grey.shade600,
                                           borderRadius: BorderRadius.circular(0),
@@ -279,11 +368,11 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
                                     ),
                                     // Main road (vertical line in center)
                                     Positioned(
-                                      left: constraints.maxWidth * 0.468 - 12,
-                                      top: 0-40,
+                                      left: 400.0 * 0.468 - 12,
+                                      top: -40,
                                       child: Container(
                                         width: 50,
-                                        height: constraints.maxHeight * 0.87, // End before Computer Department
+                                        height: 522, // 600 * 0.87
                                         decoration: BoxDecoration(
                                           color: Colors.grey.shade600,
                                           borderRadius: BorderRadius.circular(15),
@@ -292,11 +381,11 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
                                     ),
                                     // Comp/Ene Building at bottom left
                                     Positioned(
-                                      left: constraints.maxWidth * -0.037,
-                                      bottom: constraints.maxHeight * 0,
+                                      left: -14.8, // 400 * -0.037
+                                      bottom: 0,
                                       child: Container(
-                                        width: constraints.maxWidth * 0.2,
-                                        height: constraints.maxHeight * 0.30,
+                                        width: 80, // 400 * 0.2
+                                        height: 180, // 600 * 0.30
                                         decoration: BoxDecoration(
                                           color: Colors.blue.shade400,
                                           borderRadius: BorderRadius.circular(8),
@@ -317,11 +406,11 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
                                     ),
                                     // Computer Department building at bottom center
                                     Positioned(
-                                      left: constraints.maxWidth * 0.395,
-                                      bottom: constraints.maxHeight * 0,
+                                      left: 158, // 400 * 0.395
+                                      bottom: 0,
                                       child: Container(
-                                        width: constraints.maxWidth * 0.30,
-                                        height: constraints.maxHeight * 0.20,
+                                        width: 120, // 400 * 0.30
+                                        height: 120, // 600 * 0.20
                                         decoration: BoxDecoration(
                                           color: Colors.orange.shade400,
                                           borderRadius: BorderRadius.circular(8),
@@ -342,11 +431,11 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
                                     ),
                                     // Mech Building at bottom right
                                     Positioned(
-                                      left: constraints.maxWidth * 0.85,
-                                      bottom: constraints.maxHeight * 0,
+                                      left: 340, // 400 * 0.85
+                                      bottom: 0,
                                       child: Container(
-                                        width: constraints.maxWidth * 0.2,
-                                        height: constraints.maxHeight * 0.30,
+                                        width: 80, // 400 * 0.2
+                                        height: 180, // 600 * 0.30
                                         decoration: BoxDecoration(
                                           color: Colors.blue.shade400,
                                           borderRadius: BorderRadius.circular(8),
@@ -367,10 +456,10 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
                                     ),
                                     // Horizontal road connecting Comp/Ene and Mech buildings
                                     Positioned(
-                                      left: constraints.maxWidth * 0.16,
-                                      bottom: constraints.maxHeight * 0.21,
+                                      left: 64, // 400 * 0.16
+                                      bottom: 126, // 600 * 0.21
                                       child: Container(
-                                        width: constraints.maxWidth * 0.69,
+                                        width: 276, // 400 * 0.69
                                         height: 33,
                                         decoration: BoxDecoration(
                                           color: Colors.grey.shade600,
@@ -380,11 +469,11 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
                                     ),
                                     // Vertical road (passage) going down from Comp/Ene building
                                     Positioned(
-                                      left: constraints.maxWidth * 0.265,
-                                      top: constraints.maxHeight * 0.75,
+                                      left: 106, // 400 * 0.265
+                                      top: 450, // 600 * 0.75
                                       child: Container(
                                         width: 20,
-                                        height: constraints.maxHeight * 0.3,
+                                        height: 180, // 600 * 0.3
                                         decoration: BoxDecoration(
                                           color: Colors.grey.shade600,
                                           borderRadius: BorderRadius.circular(10),
@@ -395,15 +484,14 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
                                 ),
                               ),
                               // Parking spots
-                              ...spots.map((spot) => _buildParkingSpot(spot, constraints)),
+                              ...spots.map((spot) => _buildParkingSpotFixed(spot)),
                             ],
-                          );
-                        },
+                          ),
                       );
                     },
                   ),
-                  ),
                 ),
+              ),
               ),
             ),
           ],
@@ -487,7 +575,7 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
     );
   }
 
-  Widget _buildParkingSpot(ParkingSpot spot, BoxConstraints constraints) {
+  Widget _buildParkingSpotFixed(ParkingSpot spot) {
     // Determine spot color based on occupancy and ownership
     Color spotColor;
     if (!spot.isOccupied) {
@@ -498,60 +586,49 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
       spotColor = Colors.red; // Occupied by others
     }
 
-    // Calculate consistent positioning based on fixed aspect ratio
-    // Use a base width of 400 and height of 600 for consistent positioning
-    const double baseWidth = 400.0;
-    const double baseHeight = 600.0;
+    // Fixed dimensions: 400x600
+    const double mapWidth = 400.0;
+    const double mapHeight = 600.0;
     
-    // Calculate scale factors to maintain aspect ratio
-    final double scaleX = constraints.maxWidth / baseWidth;
-    final double scaleY = constraints.maxHeight / baseHeight;
-    final double scale = math.min(scaleX, scaleY); // Use the smaller scale to maintain aspect ratio
+    // Use smaller size for 2-wheelers
+    final double spotWidth = spot.type == '2-wheeler' ? 30.0 : 45.0;
+    final double spotHeight = spot.type == '2-wheeler' ? 10.0 : 25.0;
     
-    // Calculate centered positioning
-    final double scaledWidth = baseWidth * scale;
-    final double scaledHeight = baseHeight * scale;
-    final double offsetX = (constraints.maxWidth - scaledWidth) / 2;
-    final double offsetY = (constraints.maxHeight - scaledHeight) / 2;
-    
-    // Calculate spot position with consistent scaling
-    final double spotX = offsetX + (spot.x * scaledWidth) - (45 * scale / 2);
-    final double spotY = offsetY + (spot.y * scaledHeight) - (25 * scale / 2);
+    // Calculate spot position using fixed coordinates
+    final double spotX = (spot.x * mapWidth) - (spotWidth / 2);
+    final double spotY = (spot.y * mapHeight) - (spotHeight / 2);
 
     return Positioned(
       left: spotX,
       top: spotY,
       child: GestureDetector(
         onTap: () => _showParkingConfirmation(spot),
-        child: Transform.scale(
-          scale: scale,
-          child: Container(
-            width: 45,
-            height: 25,
-            decoration: BoxDecoration(
-              color: spotColor,
-              shape: BoxShape.rectangle,
-              border: Border.all(
-                color: Colors.white,
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  spreadRadius: 1,
-                  blurRadius: 3,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+        child: Container(
+          width: spotWidth,
+          height: spotHeight,
+          decoration: BoxDecoration(
+            color: spotColor,
+            shape: BoxShape.rectangle,
+            border: Border.all(
+              color: Colors.white,
+              width: 1.0,
             ),
-            child: Center(
-              child: Text(
-                spot.name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                spreadRadius: 1,
+                blurRadius: 3,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Text(
+              spot.name,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: spot.type == '2-wheeler' ? 8 : 10,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
@@ -561,6 +638,11 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
   }
 
   void _showParkingConfirmation(ParkingSpot spot) {
+    if (widget.isGuest) {
+      _showGuestParkingDialog();
+      return;
+    }
+    
     if (spot.isOccupied) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -573,6 +655,32 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
 
     // Check if user already has an active parking spot
     _checkExistingParking(spot);
+  }
+
+  void _showGuestParkingDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Login Required'),
+        content: const Text('Please login to park your vehicle. Guest users can only view available parking spots.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+              );
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.blue),
+            child: const Text('Login'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _checkExistingParking(ParkingSpot spot) async {

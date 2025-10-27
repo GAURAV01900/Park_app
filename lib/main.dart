@@ -6,6 +6,7 @@ import 'settings_screen.dart';
 import 'profile_screen.dart';
 import 'vehicles_screen.dart';
 import 'main_navigation_wrapper.dart';
+import 'guest_entry_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
@@ -30,6 +31,7 @@ class MyApp extends StatelessWidget {
         '/home': (_) => const MainNavigationWrapper(),
         '/login': (_) => const LoginScreen(),
         '/signup': (_) => const SignUpScreen(),
+        '/guest': (_) => const GuestEntryScreen(),
         '/vehicle-setup': (_) => const VehicleSetupScreen(),
         '/settings': (_) => const SettingsScreen(),
         '/profile': (_) => const ProfileScreen(),

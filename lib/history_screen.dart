@@ -5,7 +5,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'models/parking_history.dart';
 
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({super.key});
+  final bool isGuest;
+  
+  const HistoryScreen({super.key, this.isGuest = false});
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -17,6 +19,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // If user is a guest, show login required message
+    if (widget.isGuest || _auth.currentUser == null) {
+      return _buildGuestRestrictionScreen();
+    }
+    
     return Scaffold(
       backgroundColor: const Color(0xFFEEF2F7),
       appBar: AppBar(
@@ -42,7 +49,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         child: StreamBuilder<QuerySnapshot>(
           stream: _firestore
               .collection('parking_history')
-              .where('userId', isEqualTo: _auth.currentUser?.uid)
+              .where('userId', isEqualTo: _auth.currentUser!.uid)
               .snapshots(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -69,6 +76,51 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
             return _buildHistoryList(parkingHistory);
           },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGuestRestrictionScreen() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFEEF2F7),
+      appBar: AppBar(
+        title: const Text('Parking History'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        foregroundColor: Colors.black,
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.lock_outline,
+                size: 80,
+                color: Color(0xFF94A3B8),
+              ),
+              const SizedBox(height: 32),
+              const Text(
+                'Login Required',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF334155),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Please login to view your parking history. Guest users can only view available parking spots.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Color(0xFF94A3B8),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

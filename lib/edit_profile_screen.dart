@@ -23,6 +23,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _nameController = TextEditingController();
   final _rollNumberController = TextEditingController();
   final _roleController = TextEditingController();
+  final _phoneController = TextEditingController();
   
   String _selectedRole = 'Student';
   String? _selectedProfilePicture;
@@ -59,6 +60,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _nameController.text = widget.userData!['name'] ?? '';
       _rollNumberController.text = widget.userData!['rollNumber'] ?? '';
       _roleController.text = widget.userData!['role'] ?? 'Student';
+      _phoneController.text = widget.userData!['phone'] ?? '';
       _selectedProfilePicture = widget.userData!['profilePicture'] ?? 'Default';
       
       // Handle case sensitivity for role selection
@@ -77,6 +79,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _nameController.dispose();
     _rollNumberController.dispose();
     _roleController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -98,6 +101,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'role': _selectedRole,
         'profilePicture': _selectedProfilePicture ?? 'Default',
         'email': user.email,
+        'phone': _phoneController.text.trim(),
         'updatedAt': now.toIso8601String(),
       };
 
@@ -239,6 +243,83 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'Please enter your roll number';
+                    }
+                    return null;
+                  },
+                ),
+
+                const SizedBox(height: 20),
+
+                // Email field (read-only)
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.email_outlined,
+                              color: Colors.grey.shade600,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Email',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: Text(
+                          _auth.currentUser?.email ?? 'No email',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: Text(
+                          'Email cannot be changed here. Contact support if needed.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                _buildFormField(
+                  controller: _phoneController,
+                  label: 'Phone Number (Optional)',
+                  hint: 'Enter your phone number',
+                  icon: Icons.phone_outlined,
+                  validator: (value) {
+                    if (value != null && value.trim().isNotEmpty) {
+                      // Basic phone validation
+                      final phoneRegex = RegExp(r'^[0-9+\-\s()]+$');
+                      if (!phoneRegex.hasMatch(value.trim())) {
+                        return 'Please enter a valid phone number';
+                      }
                     }
                     return null;
                   },
