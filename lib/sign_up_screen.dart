@@ -37,10 +37,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
         await credential.user!.updateDisplayName(_nameController.text.trim());
         await credential.user!.reload();
 
-        // Save user data to Firestore
+        // Save user data to Firestore. Write both 'phone' and 'phoneNumber' for compatibility.
         await _firestore.collection('users').doc(credential.user!.uid).set({
           'name': _nameController.text.trim(),
           'email': _emailController.text.trim(),
+          'phone': _phoneController.text.trim(),
           'phoneNumber': _phoneController.text.trim(),
           'rollNumber': _selectedRole == 'student' ? _rollNumberController.text.trim() : '',
           'role': _selectedRole,

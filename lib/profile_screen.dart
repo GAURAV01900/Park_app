@@ -68,7 +68,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (widget.isGuest || FirebaseAuth.instance.currentUser == null) {
       return _buildGuestRestrictionScreen();
     }
-    
+    // Prepare display-friendly phone value (support both keys)
+    final displayedPhone = _userData?['phone'] ?? _userData?['phoneNumber'];
+
     return Scaffold(
       backgroundColor: const Color(0xFFEEF2F7),
       appBar: AppBar(
@@ -166,12 +168,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             title: 'Email',
                             value: _userData?['email'] ?? 'Not provided',
                           ),
-                          if (_userData?['phone'] != null && _userData!['phone'].toString().isNotEmpty) ...[
+                          if (displayedPhone != null && displayedPhone.toString().isNotEmpty) ...[
                             const Divider(height: 1),
                             _buildDetailTile(
                               icon: Icons.phone_outlined,
                               title: 'Phone',
-                              value: _userData?['phone'] ?? 'Not provided',
+                              value: displayedPhone ?? 'Not provided',
                             ),
                           ],
                           const Divider(height: 1),

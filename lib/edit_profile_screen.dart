@@ -59,7 +59,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _nameController.text = widget.userData!['name'] ?? '';
       _rollNumberController.text = widget.userData!['rollNumber'] ?? '';
       _roleController.text = widget.userData!['role'] ?? 'Student';
-      _phoneController.text = widget.userData!['phone'] ?? '';
+      // Support either 'phone' or legacy 'phoneNumber' keys
+      _phoneController.text = widget.userData!['phone'] ?? widget.userData!['phoneNumber'] ?? '';
       _selectedProfilePicture = widget.userData!['profilePicture'] ?? 'Default';
       
       // Handle case sensitivity for role selection
@@ -115,7 +116,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'role': roleToSave,
         'profilePicture': _selectedProfilePicture ?? 'Default',
         'email': user.email,
+        // Write phone in both keys for compatibility with older documents
         'phone': _phoneController.text.trim(),
+        'phoneNumber': _phoneController.text.trim(),
         'updatedAt': now.toIso8601String(),
       };
 
