@@ -18,41 +18,12 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final TransformationController _transformationController = TransformationController();
-  String? _userRole;
-  bool _isLoadingRole = false;
 
   @override
   void initState() {
     super.initState();
     _checkAndCreateInitialSpots();
-    _loadUserRole();
   }
-
-  Future<void> _loadUserRole() async {
-    try {
-      final userDoc = await _firestore
-          .collection('users')
-          .doc(_auth.currentUser?.uid)
-          .get();
-      
-      if (userDoc.exists) {
-        setState(() {
-          _userRole = userDoc.data()?['role'];
-          _isLoadingRole = false;
-        });
-      } else {
-        setState(() {
-          _isLoadingRole = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _isLoadingRole = false;
-      });
-    }
-  }
-
-  bool get _isAdmin => _userRole == 'admin' || _userRole == 'staff';
 
   @override
   void dispose() {
@@ -68,31 +39,12 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
       // Create initial parking spots if none exist
       await _createInitialParkingSpots();
     } else {
-      // Remove old M1-M6 and C1-C6 spots
-      await _removeOldTwoWheelerSpots();
       // Add missing spots if they don't exist
       await _addMissingSpots();
     }
   }
 
-  Future<void> _removeOldTwoWheelerSpots() async {
-    try {
-      final spotsSnapshot = await _firestore.collection('parking_spots').get();
-      
-      for (var doc in spotsSnapshot.docs) {
-        final data = doc.data();
-        final name = data['name'] as String?;
-        final type = data['type'] as String?;
-        
-        // Delete all old 2-wheeler spots that aren't E1-E10
-        if (type == '2-wheeler' && name != null && !name.startsWith('E')) {
-          await _firestore.collection('parking_spots').doc(doc.id).delete();
-        }
-      }
-    } catch (e) {
-      // Silently fail if there's an error - spots may not exist
-    }
-  }
+  // Removed spot deletion logic as requested
 
   Future<void> _addMissingSpots() async {
     // Get existing spot names
@@ -107,20 +59,62 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
       {'name': 'E1', 'x': 0.20, 'y': 0.79},
       {'name': 'E2', 'x': 0.20, 'y': 0.81},
       {'name': 'E3', 'x': 0.20, 'y': 0.83},
-      {'name': 'E4', 'x': 0.20, 'y': 0.87},
-      {'name': 'E5', 'x': 0.20, 'y': 0.91},
-      {'name': 'E6', 'x': 0.20, 'y': 0.95},
-      {'name': 'E7', 'x': 0.20, 'y': 0.99},
-      {'name': 'E8', 'x': 0.20, 'y': 1.03},
+      {'name': 'E4', 'x': 0.20, 'y': 0.85},
+      {'name': 'E5', 'x': 0.20, 'y': 0.87},
+      {'name': 'E6', 'x': 0.20, 'y': 0.89},
+      {'name': 'E7', 'x': 0.20, 'y': 0.91},
+      {'name': 'E8', 'x': 0.20, 'y': 0.93},
+      {'name': 'E9', 'x': 0.20, 'y': 0.95},
+      {'name': 'E10', 'x': 0.20, 'y': 0.97},
+      {'name': 'E11', 'x': 0.20, 'y': 0.99},
       // Right side of passage - 8 spots
-      {'name': 'E9', 'x': 0.354, 'y': 0.75},
-      {'name': 'E10', 'x': 0.354, 'y': 0.79},
-      {'name': 'E11', 'x': 0.354, 'y': 0.83},
-      {'name': 'E12', 'x': 0.354, 'y': 0.87},
-      {'name': 'E13', 'x': 0.354, 'y': 0.91},
-      {'name': 'E14', 'x': 0.354, 'y': 0.95},
-      {'name': 'E15', 'x': 0.354, 'y': 0.99},
-      {'name': 'E16', 'x': 0.354, 'y': 1.03},
+      {'name': 'E12', 'x': 0.354, 'y': 0.82},
+      {'name': 'E13', 'x': 0.354, 'y': 0.84},
+      {'name': 'E14', 'x': 0.354, 'y': 0.86},
+      {'name': 'E15', 'x': 0.354, 'y': 0.88},
+      {'name': 'E16', 'x': 0.354, 'y': 0.90},
+      {'name': 'E17', 'x': 0.354, 'y': 0.92},
+      {'name': 'E18', 'x': 0.354, 'y': 0.94},
+      {'name': 'E19', 'x': 0.354, 'y': 0.96},
+      {'name': 'E20', 'x': 0.354, 'y': 0.98},
+      {'name': 'E21', 'x': 0.354, 'y': 1.00},
+      //side of mech building
+      {'name': 'E22', 'x': 0.83, 'y': 0.82},
+      {'name': 'E23', 'x': 0.83, 'y': 0.84},
+      {'name': 'E24', 'x': 0.83, 'y': 0.86},
+      {'name': 'E25', 'x': 0.83, 'y': 0.88},
+      {'name': 'E26', 'x': 0.83, 'y': 0.90},
+      {'name': 'E27', 'x': 0.83, 'y': 0.92},
+      {'name': 'E28', 'x': 0.83, 'y': 0.94},
+      {'name': 'E29', 'x': 0.83, 'y': 0.96},
+      {'name': 'E30', 'x': 0.83, 'y': 0.98},
+    ];
+
+    // 2-wheeler vertical spots placed along the horizontal road (centered on the road)
+    // Names: H1-H12 spread across the horizontal road
+    final twoWheelerSpotsHorizontal = [
+      {'name': 'H1', 'x': 0.20, 'y': 0.72},
+      {'name': 'H2', 'x': 0.23, 'y': 0.72},
+      {'name': 'H3', 'x': 0.26, 'y': 0.72},
+      {'name': 'H4', 'x': 0.29, 'y': 0.72},
+      {'name': 'H5', 'x': 0.32, 'y': 0.72},
+      {'name': 'H6', 'x': 0.35, 'y': 0.72},
+      {'name': 'H7', 'x': 0.38, 'y': 0.72},
+      {'name': 'H8', 'x': 0.41, 'y': 0.72},
+      {'name': 'H9', 'x': 0.44, 'y': 0.72},
+      {'name': 'H10', 'x': 0.74, 'y': 0.72},
+      {'name': 'H11', 'x': 0.77, 'y': 0.72},
+      {'name': 'H12', 'x': 0.80, 'y': 0.72},
+      {'name': 'H13', 'x': 0.83, 'y': 0.72},
+      {'name': 'H14', 'x': 0.35, 'y': 0.785},
+      {'name': 'H15', 'x': 0.38, 'y': 0.785},
+      {'name': 'H16', 'x': 0.41, 'y': 0.785},
+      {'name': 'H17', 'x': 0.44, 'y': 0.785},
+      {'name': 'H18', 'x': 0.54, 'y': 0.785},
+      {'name': 'H19', 'x': 0.57, 'y': 0.785},
+      {'name': 'H20', 'x': 0.60, 'y': 0.785},
+      {'name': 'H21', 'x': 0.63, 'y': 0.785},
+      //special nitesh spot
     ];
 
     // Add or update E1-E16 spots
@@ -150,6 +144,41 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
         final newX = spot['x'] as double;
         final newY = spot['y'] as double;
         
+        if (existingX != newX || existingY != newY) {
+          await _firestore.collection('parking_spots').doc(existingDoc.id).update({
+            'x': newX,
+            'y': newY,
+            'updatedAt': now.toIso8601String(),
+          });
+        }
+      }
+    }
+
+    // Add or update H* spots along the horizontal road
+    for (var spot in twoWheelerSpotsHorizontal) {
+      if (!existingNames.contains(spot['name'])) {
+        final parkingSpot = ParkingSpot(
+          id: _firestore.collection('parking_spots').doc().id,
+          name: spot['name'] as String,
+          type: '2-wheeler',
+          x: spot['x'] as double,
+          y: spot['y'] as double,
+          isOccupied: false,
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        await _firestore
+            .collection('parking_spots')
+            .doc(parkingSpot.id)
+            .set(parkingSpot.toMap());
+      } else {
+        final existingDoc = existingSpots.docs.firstWhere((doc) => doc.data()['name'] == spot['name']);
+        final existingX = existingDoc.data()['x'] as double;
+        final existingY = existingDoc.data()['y'] as double;
+        final newX = spot['x'] as double;
+        final newY = spot['y'] as double;
+
         if (existingX != newX || existingY != newY) {
           await _firestore.collection('parking_spots').doc(existingDoc.id).update({
             'x': newX,
@@ -206,23 +235,44 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
     // 2-wheeler parking spots - On either side of the passage
     final twoWheelerSpotsCompEne = [
       // Left side of passage - 8 spots
-      {'name': 'E1', 'x': 0.18, 'y': 0.75},
-      {'name': 'E2', 'x': 0.18, 'y': 0.79},
-      {'name': 'E3', 'x': 0.18, 'y': 0.83},
-      {'name': 'E4', 'x': 0.18, 'y': 0.87},
-      {'name': 'E5', 'x': 0.18, 'y': 0.91},
-      {'name': 'E6', 'x': 0.18, 'y': 0.95},
-      {'name': 'E7', 'x': 0.18, 'y': 0.99},
-      {'name': 'E8', 'x': 0.18, 'y': 1.03},
+      {'name': 'E1', 'x': 0.20, 'y': 0.79},
+      {'name': 'E2', 'x': 0.20, 'y': 0.81},
+      {'name': 'E3', 'x': 0.20, 'y': 0.83},
+      {'name': 'E4', 'x': 0.20, 'y': 0.85},
+      {'name': 'E5', 'x': 0.20, 'y': 0.87},
+      {'name': 'E6', 'x': 0.20, 'y': 0.89},
+      {'name': 'E7', 'x': 0.20, 'y': 0.91},
+      {'name': 'E8', 'x': 0.20, 'y': 0.93},
+      {'name': 'E9', 'x': 0.20, 'y': 0.95},
+      {'name': 'E10', 'x': 0.20, 'y': 0.97},
+      {'name': 'E11', 'x': 0.20, 'y': 0.99},
       // Right side of passage - 8 spots
-      {'name': 'E9', 'x': 0.33, 'y': 0.75},
-      {'name': 'E10', 'x': 0.33, 'y': 0.79},
-      {'name': 'E11', 'x': 0.33, 'y': 0.83},
-      {'name': 'E12', 'x': 0.33, 'y': 0.87},
-      {'name': 'E13', 'x': 0.33, 'y': 0.91},
-      {'name': 'E14', 'x': 0.33, 'y': 0.95},
-      {'name': 'E15', 'x': 0.33, 'y': 0.99},
-      {'name': 'E16', 'x': 0.33, 'y': 1.03},
+      {'name': 'E12', 'x': 0.354, 'y': 0.82},
+      {'name': 'E13', 'x': 0.354, 'y': 0.84},
+      {'name': 'E14', 'x': 0.354, 'y': 0.86},
+      {'name': 'E15', 'x': 0.354, 'y': 0.88},
+      {'name': 'E16', 'x': 0.354, 'y': 0.90},
+      {'name': 'E17', 'x': 0.354, 'y': 0.92},
+      {'name': 'E18', 'x': 0.354, 'y': 0.94},
+      {'name': 'E19', 'x': 0.354, 'y': 0.96},
+      {'name': 'E20', 'x': 0.354, 'y': 0.98},
+    ];
+
+    // 2-wheeler vertical spots placed along the horizontal road (centered on the road)
+    final twoWheelerSpotsHorizontal = [
+      {'name': 'H1', 'x': 0.20, 'y': 0.72},
+      {'name': 'H2', 'x': 0.23, 'y': 0.72},
+      {'name': 'H3', 'x': 0.26, 'y': 0.72},
+      {'name': 'H4', 'x': 0.29, 'y': 0.72},
+      {'name': 'H5', 'x': 0.32, 'y': 0.72},
+      {'name': 'H6', 'x': 0.35, 'y': 0.72},
+      {'name': 'H7', 'x': 0.38, 'y': 0.72},
+      {'name': 'H8', 'x': 0.41, 'y': 0.72},
+      {'name': 'H9', 'x': 0.44, 'y': 0.72},
+      {'name': 'H10', 'x': 0.74, 'y': 0.72},
+      {'name': 'H11', 'x': 0.77, 'y': 0.72},
+      {'name': 'H12', 'x': 0.80, 'y': 0.72},
+      {'name': 'H13', 'x': 0.83, 'y': 0.72},
     ];
 
     // Create 4-wheeler spots - Left side
@@ -276,6 +326,25 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
         updatedAt: now,
       );
       
+      await _firestore
+          .collection('parking_spots')
+          .doc(parkingSpot.id)
+          .set(parkingSpot.toMap());
+    }
+
+    // Create 2-wheeler vertical spots along horizontal road
+    for (var spot in twoWheelerSpotsHorizontal) {
+      final parkingSpot = ParkingSpot(
+        id: _firestore.collection('parking_spots').doc().id,
+        name: spot['name'] as String,
+        type: '2-wheeler',
+        x: spot['x'] as double,
+        y: spot['y'] as double,
+        isOccupied: false,
+        createdAt: now,
+        updatedAt: now,
+      );
+
       await _firestore
           .collection('parking_spots')
           .doc(parkingSpot.id)
@@ -441,7 +510,7 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
                                         width: 120, // 400 * 0.30
                                         height: 120, // 600 * 0.20
                                         decoration: BoxDecoration(
-                                          color: Colors.orange.shade400,
+                                          color: Colors.blue.shade400,
                                           borderRadius: BorderRadius.circular(8),
                                           border: Border.all(color: Colors.grey.shade600, width: 2),
                                         ),
@@ -526,37 +595,7 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
           ],
         ),
       ),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FloatingActionButton(
-            heroTag: "zoom_in",
-            mini: true,
-            onPressed: () => _zoomIn(),
-            backgroundColor: Colors.white,
-            foregroundColor: const Color(0xFF1173D4),
-            child: const Icon(Icons.zoom_in),
-          ),
-          const SizedBox(height: 8),
-          FloatingActionButton(
-            heroTag: "zoom_out",
-            mini: true,
-            onPressed: () => _zoomOut(),
-            backgroundColor: Colors.white,
-            foregroundColor: const Color(0xFF1173D4),
-            child: const Icon(Icons.zoom_out),
-          ),
-          const SizedBox(height: 8),
-          FloatingActionButton(
-            heroTag: "reset_zoom",
-            mini: true,
-            onPressed: () => _resetZoom(),
-            backgroundColor: const Color(0xFF1173D4),
-            foregroundColor: Colors.white,
-            child: const Icon(Icons.center_focus_strong),
-          ),
-        ],
-      ),
+      floatingActionButton: null,
     );
   }
 
@@ -619,9 +658,11 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
     const double mapWidth = 400.0;
     const double mapHeight = 600.0;
     
-    // Use smaller size for 2-wheelers
-    final double spotWidth = spot.type == '2-wheeler' ? 30.0 : 45.0;
-    final double spotHeight = spot.type == '2-wheeler' ? 10.0 : 25.0;
+    // Use smaller size for 2-wheelers; H* 2-wheeler spots are vertical
+    final bool isTwoWheeler = spot.type == '2-wheeler';
+    final bool isVerticalTwoWheeler = isTwoWheeler && spot.name.toUpperCase().startsWith('H');
+    final double spotWidth = isTwoWheeler ? (isVerticalTwoWheeler ? 10.0 : 30.0) : 45.0;
+    final double spotHeight = isTwoWheeler ? (isVerticalTwoWheeler ? 26.0 : 10.0) : 25.0;
     
     // Calculate spot position using fixed coordinates
     final double spotX = (spot.x * mapWidth) - (spotWidth / 2);
@@ -671,12 +712,6 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
       _showGuestParkingDialog();
       return;
     }
-
-    // If admin, show admin options
-    if (_isAdmin) {
-      _showAdminParkingOptions(spot);
-      return;
-    }
     
     if (spot.isOccupied) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -690,126 +725,6 @@ class _ParkingMapScreenState extends State<ParkingMapScreen> {
 
     // Check if user already has an active parking spot
     _checkExistingParking(spot);
-  }
-
-  void _showAdminParkingOptions(ParkingSpot spot) async {
-    String? userName = 'Loading...';
-    
-    if (spot.isOccupied && spot.occupiedBy != null) {
-      try {
-        final userDoc = await _firestore.collection('users').doc(spot.occupiedBy).get();
-        if (userDoc.exists) {
-          userName = userDoc.data()?['name'] as String?;
-        }
-      } catch (e) {
-        userName = 'Unknown';
-      }
-    }
-    
-    if (context.mounted) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Spot ${spot.name}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Type: ${spot.type}'),
-              Text('Status: ${spot.isOccupied ? "Occupied" : "Available"}'),
-              if (spot.isOccupied) ...[
-                const SizedBox(height: 8),
-                Text('Occupied by: $userName'),
-                if (spot.vehicleName != null)
-                  Text('Vehicle: ${spot.vehicleName}'),
-              ],
-            ],
-          ),
-          actions: [
-            if (spot.isOccupied)
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _showForceUnparkConfirmation(spot);
-                },
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('Force Unpark'),
-              ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                if (!spot.isOccupied) {
-                  _checkExistingParking(spot);
-                }
-              },
-              child: const Text('Park Vehicle'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
-            ),
-          ],
-        ),
-      );
-    }
-  }
-
-  void _showForceUnparkConfirmation(ParkingSpot spot) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Force Unpark'),
-        content: Text('Are you sure you want to force unpark spot ${spot.name}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _forceUnpark(spot);
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Force Unpark'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _forceUnpark(ParkingSpot spot) async {
-    try {
-      await _firestore.collection('parking_spots').doc(spot.id).update({
-        'isOccupied': false,
-        'occupiedBy': FieldValue.delete(),
-        'occupiedAt': FieldValue.delete(),
-        'vehicleId': FieldValue.delete(),
-        'vehicleName': FieldValue.delete(),
-        'vehicleLicensePlate': FieldValue.delete(),
-        'vehicleType': FieldValue.delete(),
-        'isGuestVehicle': false,
-        'updatedAt': DateTime.now().toIso8601String(),
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Spot force unparked successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
   }
 
   void _showGuestParkingDialog() {

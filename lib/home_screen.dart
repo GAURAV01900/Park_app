@@ -5,6 +5,7 @@ import 'parking_map_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'models/parking_spot.dart';
+import 'admin_dashboard_screen.dart';
 import 'models/parking_history.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -22,6 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   String? _userName;
   bool _isLoadingName = true;
+  String? _userRole;
 
   @override
   void initState() {
@@ -41,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
         if (doc.exists && doc.data() != null) {
           setState(() {
             _userName = doc.data()!['name'] as String?;
+            _userRole = doc.data()!['role'] as String?;
             _isLoadingName = false;
           });
         } else {
@@ -59,6 +62,8 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     }
   }
+
+  bool get _isAdmin => (_userRole?.toLowerCase() == 'admin') || (_userRole?.toLowerCase() == 'staff');
 
   String _getGreeting() {
     if (widget.isGuest) {
@@ -408,6 +413,35 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: const Text('My Parking History'),
                       ),
                     ),
+                    if (_isAdmin) ...[
+                      const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0x1A1173D4),
+                          foregroundColor: const Color(0xFF1173D4),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 19,
+                          ),
+                          elevation: 0,
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).push(
+                          MaterialPageRoute(
+                          builder: (context) => const AdminDashboardScreen(),
+                            ),
+          );
+                        },
+                        child: const Text('Admin Dashboard'),
+                      ),
+                    ),
+                    ],
                   ],
                 ),
               ),

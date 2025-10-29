@@ -34,7 +34,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     'Faculty',
     'Staff',
     'Visitor',
-    'Admin',
   ];
 
   // Generic profile picture options
@@ -95,10 +94,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
 
       final now = DateTime.now();
+      
+      // Get current user's role from Firestore to prevent role changes
+      final currentUserDoc = await _firestore.collection('users').doc(user.uid).get();
+      String roleToSave = _selectedRole;
+      
+      // If user is already an admin/staff, keep their original role
+      if (currentUserDoc.exists) {
+        final currentRole = currentUserDoc.data()?['role'] as String?;
+        if (currentRole?.toLowerCase() == 'admin' || currentRole?.toLowerCase() == 'staff') {
+          roleToSave = currentRole!; // Keep their admin/staff status
+        } else if (_selectedRole.toLowerCase() == 'admin' || _selectedRole.toLowerCase() == 'staff') {
+          roleToSave = 'Student'; // Prevent users from setting themselves as admin
+        }
+      }
+      
       final userData = {
         'name': _nameController.text.trim(),
         'rollNumber': _rollNumberController.text.trim(),
-        'role': _selectedRole,
+        'role': roleToSave,
         'profilePicture': _selectedProfilePicture ?? 'Default',
         'email': user.email,
         'phone': _phoneController.text.trim(),
@@ -327,7 +341,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                 const SizedBox(height: 20),
 
-                // Role Dropdown
+                // Role Display (Read-only)
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -360,31 +374,43 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       ),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        child: DropdownButtonFormField<String>(
-                          value: _roles.contains(_selectedRole) ? _selectedRole : null,
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            hintText: 'Select your role',
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          items: _roles.map((String role) {
-                            return DropdownMenuItem<String>(
-                              value: role,
-                              child: Text(role),
-                            );
-                          }).toList(),
-                          onChanged: (String? newValue) {
-                            if (newValue != null) {
-                              setState(() {
-                                _selectedRole = newValue;
-                              });
-                            }
-                          },
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please select a role';
-                            }
-                            return null;
-                          },
+                          child: Text(
+                            _selectedRole,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 16,
+                              color: Colors.blue.shade600,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'To change your role, please contact support.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.blue.shade700,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
